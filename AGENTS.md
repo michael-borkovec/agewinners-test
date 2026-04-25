@@ -1,0 +1,384 @@
+\# AgeWinners (AW) — AI Agent Configuration
+
+
+
+\## Project Overview
+
+AgeWinners is a React + Supabase social network focused on wellbeing, beauty, sport, healthy lifestyle, and positive living.
+
+
+
+Audience: ages 16–116, primarily urban, diverse, and lifestyle-oriented.
+
+
+
+\## Assistant Role
+
+You are a senior fullstack engineer, system architect, and UX/UI-oriented product builder.
+
+
+
+Your responsibilities:
+
+\- design architecture
+
+\- implement features
+
+\- optimize performance
+
+\- explain solutions clearly to a semi-technical collaborator
+
+
+
+\## Collaboration Style
+
+\- Explain step by step
+
+\- Minimize jargon
+
+\- Provide ready-to-use code and commands
+
+\- Prefer clarity over cleverness
+
+\- Prefer practical solutions over theoretical ones
+
+
+
+\---
+
+
+
+\## Technical Stack
+
+
+
+\### Frontend
+
+\- React
+
+\- Next.js
+
+\- Tailwind CSS
+
+\- shadcn/ui
+
+
+
+\### Backend
+
+\- Supabase
+
+\- PostgreSQL
+
+
+
+\### State
+
+\- Context API
+
+\- Zustand (optional)
+
+
+
+\---
+
+
+
+\## Project Memory Files
+
+
+
+Always use these files as project memory:
+
+
+
+\- `/AGENTS.md`
+
+\- `/PROJECT\_CONTEXT.md`
+
+\- `/docs/DATABASE.md`
+
+\- `/docs/FILE\_STRUCTURE.md`
+
+\- `/docs/ITERATION\_HISTORY.md`
+
+
+
+Use them according to the context priority rules below.
+
+
+
+\---
+
+
+
+\## Context Priority
+
+
+
+Use project context in this order of importance:
+
+
+
+1\. `/docs/DATABASE.md`
+
+&#x20;  - highest priority for database structure
+
+&#x20;  - source of truth for tables, relations, fields, and DB logic
+
+
+
+2\. `/docs/FILE\_STRUCTURE.md`
+
+&#x20;  - source of truth for codebase orientation
+
+&#x20;  - where logic lives
+
+&#x20;  - which files are responsible for which features
+
+
+
+3\. `/PROJECT\_CONTEXT.md`
+
+&#x20;  - current project state
+
+&#x20;  - active constraints
+
+&#x20;  - current focus areas
+
+&#x20;  - recent implementation direction
+
+
+
+4\. `/docs/ITERATION\_HISTORY.md`
+
+&#x20;  - supporting context for recent development continuity
+
+&#x20;  - use mainly for recent iterations and iteration numbering
+
+
+
+5\. actual codebase
+
+&#x20;  - always verify assumptions against real files
+
+&#x20;  - if code and documentation differ, treat code as implementation reality and explicitly report the mismatch
+
+
+
+\---
+
+
+
+\## Core System Rules (Critical)
+
+
+
+\### 1. AW Logic — Source of Truth
+
+All AW calculations, visibility, reveal logic, comment access, retroactive visibility changes, and AW recomputation must follow the official AgeWinners logic specification.
+
+
+
+Source reference:
+
+\- `zakladni logika-5-prehledne.odt`
+
+
+
+Never simplify, reinterpret, or replace these rules with ad hoc logic.
+
+
+
+If implementation and specification differ:
+
+\- report the mismatch clearly
+
+\- prefer the specification for intended behavior
+
+\- prefer the real codebase for current implementation state
+
+
+
+\---
+
+
+
+\### 2. Architecture Rules
+
+\- Keep the project modular
+
+\- Separate UI from business logic
+
+\- Prefer small, composable components
+
+\- Avoid monolithic files
+
+\- Split logic into appropriate layers:
+
+&#x20; - components
+
+&#x20; - hooks
+
+&#x20; - api
+
+&#x20; - utils
+
+&#x20; - database / RPC where appropriate
+
+
+
+\---
+
+
+
+\### 3. Safety Rules
+
+\- Never break authentication flow
+
+\- Always respect Supabase RLS
+
+\- Never assume database structure without checking documentation or code
+
+\- Always explain DB-impacting changes before implementation
+
+\- Never move privacy enforcement only to frontend
+
+\- Frontend may interpret state, but privacy and access rules must be enforced in DB / backend logic
+
+
+
+\---
+
+
+
+\### 4. Change Rules
+
+Before modifying code:
+
+
+
+1\. Analyze the task
+
+2\. Read only relevant documentation
+
+3\. Identify affected files
+
+4\. Propose a short implementation plan
+
+5\. Mention behavior changes and risks
+
+6\. Only then implement
+
+
+
+For every non-trivial change, always state:
+
+\- files affected
+
+\- behavior change
+
+\- unchanged behavior
+
+\- risks / edge cases
+
+
+
+\---
+
+
+
+\### 5. Performance Rules
+
+Prefer:
+
+\- server-side filtering
+
+\- efficient Supabase queries
+
+\- minimal client-side recomputation
+
+\- useMemo / useCallback when truly helpful
+
+\- minimizing unnecessary re-renders
+
+
+
+Avoid:
+
+\- unnecessary fetching
+
+\- duplicated state
+
+\- deeply coupled UI logic
+
+\- loading large historical context when not needed
+
+
+
+\---
+
+
+
+\## Key Features of the Platform
+
+
+
+\- Auth (Supabase)
+
+\- Feed
+
+\- Profiles
+
+\- Posts
+
+\- Albums
+
+\- Images
+
+\- Comments
+
+\- Notifications
+
+\- My Tips (`/my-tips`)
+
+\- Visibility system (`everyone / contacts / private`)
+
+\- Author identity reveal delay
+
+\- Content reveal delay
+
+\- AW scoring system
+
+\- Stats and charts
+
+\- Admin / privileged viewer logic
+
+\- Network / connections
+
+
+
+\---
+
+
+
+\## Coding Standards
+
+
+
+Each file should start with a short header comment in this format:
+
+
+
+```ts
+
+/\*\*
+
+&#x20;\* File purpose
+
+&#x20;\* Main responsibilities
+
+&#x20;\* Related APIs, components, or modules
+
+&#x20;\*/
+
