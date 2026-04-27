@@ -60,6 +60,16 @@ type AppNavLinkProps = {
   badgeCount?: number;
   badgeTone?: "emerald" | "rose";
   pathname: string;
+  onClick?: () => void;
+  compact?: boolean;
+};
+
+type AppNavItem = {
+  href: string;
+  label: string;
+  iconPath: string;
+  badgeKey?: "messages" | "notifications";
+  badgeTone?: "emerald" | "rose";
 };
 
 const PROFILE_DROPDOWN_LINKS = [
@@ -74,6 +84,16 @@ const INFO_LINKS = [
   { href: "/help", label: "Nápověda" },
   { href: "/privacy-terms", label: "Soukromí & podmínky" },
 ] as const;
+const APP_NAV_ITEMS: AppNavItem[] = [
+  { href: "/", label: "Feed", iconPath: "/ui/Menu-Feed.ico" },
+  { href: "/my-posts", label: "Moje posty", iconPath: "/ui/Menu-moje-posty.ico" },
+  { href: "/my-tips", label: "Moje tipy", iconPath: "/ui/Menu-Moje-tipy.ico" },
+  { href: "/my-albums", label: "Moje výzvy", iconPath: "/ui/Menu-Moje-alba.ico" },
+  { href: "/network", label: "Moje síť", iconPath: "/ui/Menu-Moje-sit.ico" },
+  { href: "/messages", label: "Zprávy", iconPath: "/ui/Menu-Zpravy.ico", badgeKey: "messages" },
+  { href: "/notifications", label: "Upozornění", iconPath: "/ui/Menu-upozorneni.ico", badgeKey: "notifications", badgeTone: "rose" },
+  { href: "/stats", label: "Statistiky", iconPath: "/ui/Statistiky.ico" },
+];
 
 function canSeeAdminMenu(role: string | null | undefined) {
   return role === "admin" || role === "moderator";
@@ -93,17 +113,24 @@ function BrandLogo({
   mobileMenuOpen: boolean;
   onMobileToggleMenu: () => void;
 }) {
+  const activeItem = getActiveNavItem(pathname);
+
   return (
-    <div className="flex flex-col">
-      <div className="flex items-center gap-2">
+    <div className="flex min-w-0 flex-1 flex-col md:flex-none">
+      <div className="flex min-w-0 items-start gap-2">
         <button
           type="button"
           onClick={onMobileToggleMenu}
-          className="flex items-center gap-2 rounded-xl px-1 py-1 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-300 md:hidden"
+          className="flex w-[58px] shrink-0 flex-col items-center justify-center rounded-xl px-1 py-1 text-center text-emerald-800 transition hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-200 md:hidden"
           aria-label={mobileMenuOpen ? "Skrýt hlavní menu" : "Zobrazit hlavní menu"}
           title={mobileMenuOpen ? "Skrýt hlavní menu" : "Zobrazit hlavní menu"}
         >
-          <Image src="/logo.png" alt="AgeWinners logo" width={52} height={52} priority style={{ width: "auto", height: "auto" }} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={activeItem.iconPath} alt="" className="h-7 w-7" />
+          <span className="mt-0.5 w-full truncate text-[10px] font-semibold leading-none">{activeItem.label}</span>
+          <span className={`mt-0.5 text-slate-500 transition ${mobileMenuOpen ? "rotate-180" : ""}`}>
+            <ChevronDownIcon />
+          </span>
         </button>
 
         <Link href="/" className="hidden items-center gap-2 transition hover:opacity-90 md:-ml-3 md:flex">
@@ -111,12 +138,26 @@ function BrandLogo({
           <span className="text-[1.88rem] font-semibold text-slate-800">AgeWinners</span>
         </Link>
 
-        <div className="md:hidden">
-          <div className="text-[1.5rem] font-semibold text-slate-800">AgeWinners</div>
+        <div className="min-w-0 translate-x-1.5 pt-0.5 md:hidden">
+          <div className="truncate text-[1.25rem] font-semibold leading-tight text-slate-800 min-[380px]:text-[1.45rem]">AgeWinners</div>
+          <nav className="mt-0.5 flex flex-nowrap items-center gap-2 whitespace-nowrap text-[9px] italic leading-none text-slate-600">
+            {INFO_LINKS.map((item) => {
+              const active = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={active ? "font-semibold text-slate-900" : "transition hover:text-slate-900"}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
         </div>
       </div>
 
-      <nav className="ml-[60px] mt-[-6px] flex translate-x-[4ch] flex-nowrap items-center gap-2 whitespace-nowrap text-[9px] italic leading-none text-slate-600 md:ml-[86px] md:text-[8px]">
+      <nav className="ml-[86px] mt-[-6px] hidden flex-nowrap items-center gap-2 whitespace-nowrap text-[8px] italic leading-none text-slate-600 md:flex">
         {INFO_LINKS.map((item) => {
           const active = pathname === item.href;
           return (
@@ -132,6 +173,14 @@ function BrandLogo({
       </nav>
     </div>
   );
+}
+
+function isNavItemActive(pathname: string, href: string) {
+  return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function getActiveNavItem(pathname: string) {
+  return APP_NAV_ITEMS.find((item) => isNavItemActive(pathname, item.href)) ?? APP_NAV_ITEMS[0];
 }
 
 function isAuthEntryRoute(pathname: string) {
@@ -193,22 +242,28 @@ function MessagesNavLink({ unreadCount }: { unreadCount: number }) {
   );
 }
 
-function AppNavLink({ href, label, iconPath, badgeCount = 0, badgeTone = "emerald", pathname }: AppNavLinkProps) {
-  const isActive = href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+function AppNavLink({ href, label, iconPath, badgeCount = 0, badgeTone = "emerald", pathname, onClick, compact = false }: AppNavLinkProps) {
+  const isActive = isNavItemActive(pathname, href);
   const badgeClass = badgeTone === "rose" ? "bg-rose-600 text-white" : "bg-emerald-600 text-white";
+  const layoutClass = compact
+    ? "min-w-0 flex-row gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs"
+    : "min-w-[84px] flex-col gap-1 rounded-xl px-3 py-2 text-center text-sm";
+  const iconClass = compact ? "h-5 w-5" : "h-[2.1em] w-[2.1em]";
+  const badgePositionClass = compact ? "right-1 top-1" : "right-2 top-2";
 
   return (
     <Link
-      className={`relative inline-flex min-w-[84px] flex-col items-center justify-center gap-1 rounded-xl px-3 py-2 text-center text-sm font-medium transition ${
+      onClick={onClick}
+      className={`relative inline-flex items-center justify-center font-medium transition ${layoutClass} ${
         isActive ? "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200" : "text-slate-700 hover:bg-slate-100"
       }`}
       href={href}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={iconPath} alt="" className="h-[2.1em] w-[2.1em] shrink-0" />
-      <span className="text-xs leading-tight">{label}</span>
+      <img src={iconPath} alt="" className={`${iconClass} shrink-0`} />
+      <span className="truncate leading-tight">{label}</span>
       {badgeCount > 0 ? (
-        <span className={`absolute right-2 top-2 inline-flex min-w-[20px] items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-bold ${badgeClass}`}>
+        <span className={`absolute ${badgePositionClass} inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold ${badgeClass}`}>
           {badgeCount > 99 ? "99+" : badgeCount}
         </span>
       ) : null}
@@ -293,7 +348,7 @@ export default function AuthShell({ children }: AuthShellProps) {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [mobileNavOpen, setMobileNavOpen] = useState(true);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const [avatarBust, setAvatarBust] = useState<number>(() => Date.now());
 
@@ -808,13 +863,17 @@ export default function AuthShell({ children }: AuthShellProps) {
   const profileMenuLinks = canSeeAdminMenu(profile?.role ?? null)
     ? [...PROFILE_DROPDOWN_LINKS, { href: "/admin", label: "Administrace" as const }]
     : PROFILE_DROPDOWN_LINKS;
+  const navItemsWithCounts = APP_NAV_ITEMS.map((item) => ({
+    ...item,
+    badgeCount: item.badgeKey === "messages" ? unreadMessages : item.badgeKey === "notifications" ? unreadNotifications : 0,
+  }));
 
   return (
     <AwDialogProvider>
       <AuthProvider session={session}>
         <div className="min-h-screen bg-slate-50" style={{ ["--aw-topbar-h" as any]: `${topbarH}px` }}>
         <header ref={headerRef as any} className="sticky top-0 z-50 border-b border-slate-200 bg-white/90 backdrop-blur">
-          <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
+          <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-2 min-[380px]:gap-3 min-[380px]:px-4 md:gap-4 md:py-3">
             <BrandLogo
               pathname={pathname || "/"}
               mobileMenuOpen={mobileNavOpen}
@@ -825,13 +884,13 @@ export default function AuthShell({ children }: AuthShellProps) {
               <button
                 type="button"
                 onClick={() => setProfileMenuOpen((v) => !v)}
-                className="inline-flex min-w-[84px] flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-center hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                className="inline-flex w-[64px] flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5 text-center hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-300 min-[380px]:w-[78px]"
                 aria-label="Můj profil"
                 title="Můj profil"
                 aria-expanded={profileMenuOpen}
               >
                 <HeaderAvatar avatarUrl={avatarUrlBusted} displayName={profile?.display_name ?? null} />
-                <span className="max-w-[88px] truncate text-[11px] font-medium leading-tight text-slate-700">
+                <span className="w-full truncate text-[10px] font-medium leading-tight text-slate-700 min-[380px]:text-[11px]">
                   {profile?.display_name ?? "Můj profil"}
                 </span>
                 <span className="inline-flex items-center gap-1 text-[11px] font-medium leading-none text-slate-500">
@@ -874,14 +933,17 @@ export default function AuthShell({ children }: AuthShellProps) {
 
             <div className="hidden items-center gap-2 md:ml-8 md:flex">
               <nav className="flex items-center gap-2">
-                <AppNavLink href="/" label="Feed" iconPath="/ui/Menu-Feed.ico" pathname={pathname || "/"} />
-                <AppNavLink href="/my-posts" label="Moje posty" iconPath="/ui/Menu-moje-posty.ico" pathname={pathname || "/"} />
-                <AppNavLink href="/my-tips" label="Moje tipy" iconPath="/ui/Menu-Moje-tipy.ico" pathname={pathname || "/"} />
-                <AppNavLink href="/my-albums" label="Moje výzvy" iconPath="/ui/Menu-Moje-alba.ico" pathname={pathname || "/"} />
-                <AppNavLink href="/network" label="Moje síť" iconPath="/ui/Menu-Moje-sit.ico" pathname={pathname || "/"} />
-                <AppNavLink href="/messages" label="Zprávy" iconPath="/ui/Menu-Zpravy.ico" badgeCount={unreadMessages} pathname={pathname || "/"} />
-                <AppNavLink href="/notifications" label="Upozornění" iconPath="/ui/Menu-upozorneni.ico" badgeCount={unreadNotifications} badgeTone="rose" pathname={pathname || "/"} />
-                <AppNavLink href="/stats" label="Statistiky" iconPath="/ui/Statistiky.ico" pathname={pathname || "/"} />
+                {navItemsWithCounts.map((item) => (
+                  <AppNavLink
+                    key={item.href}
+                    href={item.href}
+                    label={item.label}
+                    iconPath={item.iconPath}
+                    badgeCount={item.badgeCount}
+                    badgeTone={item.badgeTone}
+                    pathname={pathname || "/"}
+                  />
+                ))}
               </nav>
 
               <div className="relative ml-1">
@@ -935,20 +997,27 @@ export default function AuthShell({ children }: AuthShellProps) {
             </div>
           </div>
 
-          {mobileNavOpen ? (
           <div className="border-t border-slate-100 md:hidden">
-            <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 px-4 py-3">
-              <AppNavLink href="/" label="Feed" iconPath="/ui/Menu-Feed.ico" pathname={pathname || "/"} />
-              <AppNavLink href="/my-posts" label="Moje posty" iconPath="/ui/Menu-moje-posty.ico" pathname={pathname || "/"} />
-              <AppNavLink href="/my-tips" label="Moje tipy" iconPath="/ui/Menu-Moje-tipy.ico" pathname={pathname || "/"} />
-              <AppNavLink href="/my-albums" label="Moje výzvy" iconPath="/ui/Menu-Moje-alba.ico" pathname={pathname || "/"} />
-              <AppNavLink href="/network" label="Moje síť" iconPath="/ui/Menu-Moje-sit.ico" pathname={pathname || "/"} />
-              <AppNavLink href="/messages" label="Zprávy" iconPath="/ui/Menu-Zpravy.ico" badgeCount={unreadMessages} pathname={pathname || "/"} />
-              <AppNavLink href="/notifications" label="Upozornění" iconPath="/ui/Menu-upozorneni.ico" badgeCount={unreadNotifications} badgeTone="rose" pathname={pathname || "/"} />
-              <AppNavLink href="/stats" label="Statistiky" iconPath="/ui/Statistiky.ico" pathname={pathname || "/"} />
+            <div className="mx-auto max-w-6xl px-3 py-1.5 min-[380px]:px-4">
+              {mobileNavOpen ? (
+                <div className="grid grid-cols-2 gap-1.5 pb-1.5 min-[420px]:grid-cols-3">
+                  {navItemsWithCounts.map((item) => (
+                    <AppNavLink
+                      key={item.href}
+                      href={item.href}
+                      label={item.label}
+                      iconPath={item.iconPath}
+                      badgeCount={item.badgeCount}
+                      badgeTone={item.badgeTone}
+                      pathname={pathname || "/"}
+                      onClick={() => setMobileNavOpen(false)}
+                      compact
+                    />
+                  ))}
+                </div>
+              ) : null}
             </div>
           </div>
-          ) : null}
         </header>
 
         <div className={`mx-auto grid grid-cols-1 gap-6 px-4 py-6 ${isAdminRoute ? "max-w-[1600px]" : "max-w-6xl md:grid-cols-[288px_minmax(0,1fr)]"}`}>

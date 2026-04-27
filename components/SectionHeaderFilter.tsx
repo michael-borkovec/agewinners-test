@@ -258,8 +258,8 @@ export function SectionHeaderFilter(props: {
 
   return (
     <>
-      <div className="fixed left-[66%] top-[33px] z-[60] -translate-x-1/2 sm:hidden">
-        <div className="flex flex-col items-center gap-0.5">
+      <div className="fixed left-[132px] top-[68px] z-[60] sm:hidden">
+        <div className="flex items-center gap-2 rounded-sm bg-white/80 px-1 py-0.5">
           {helpText ? <HelpIconButton helpText={helpText} iconClassName="h-3.5 w-3.5" className="p-1" modalTitle={`Nápověda – ${title}`} /> : null}
 
           {beforeFilterAction ? (
