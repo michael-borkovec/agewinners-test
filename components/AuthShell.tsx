@@ -136,7 +136,7 @@ function BrandLogo({
         </button>
 
         <Link href="/" className="hidden items-center gap-2 transition hover:opacity-90 md:-ml-3 md:flex">
-          <Image src="/logo.png" alt="AgeWinners logo" width={90} height={90} priority className="translate-y-2" style={{ width: "auto", height: "auto" }} />
+          <Image src="/Logo.png" alt="AgeWinners logo" width={90} height={90} priority className="translate-y-2" style={{ width: "auto", height: "auto" }} />
           <span className="text-[1.88rem] font-semibold text-slate-800">AgeWinners</span>
         </Link>
 
