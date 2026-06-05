@@ -1,4 +1,4 @@
-/**
+﻿/**
  * File purpose
  * - Show historical daily snapshots for selected profile metrics
  * - Provide month/year views in a modal chart
@@ -91,7 +91,7 @@ function buildMetricConfig(metric: StatsHistoryMetric | null): MetricConfig | nu
   if (metric === "avg_accuracy_pct") {
     return {
       title: "Historie průměrné přesnosti tipů",
-      description: "Denní snapshot průměrné přesnosti tipů ve chvíli, kdy byly statistiky otevřené.",
+      description: "Denní snapshot průměrné přesnosti tipů ve chvíli, kdy byl otevřený Můj vývoj.",
       lineColor: "#2563eb",
       dotColor: "#3b82f6",
       valueSuffix: " %",
@@ -199,16 +199,16 @@ export default function StatsHistoryModal(props: StatsHistoryModalProps) {
           </div>
         </div>
 
-        {loading ? <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6 text-slate-600">Načítám historii…</div> : null}
+        {loading ? <div className="mt-6 rounded-2xl bg-slate-50 p-6 text-slate-600">Načítám historii…</div> : null}
         {error ? <div className="mt-6 rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm text-rose-700">{error}</div> : null}
 
         {!loading && !error ? (
           chartRows.length === 0 ? (
-            <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-6 text-slate-600">
+            <div className="mt-6 rounded-2xl bg-slate-50 p-6 text-slate-600">
               Zatím nejsou k dispozici denní snapshoty pro vybraný interval.
             </div>
           ) : (
-            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4">
+            <div className="mt-6 rounded-2xl bg-white p-4">
               <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label={config.title}>
                 {yTicks.map((tick) => (
                   <line
@@ -279,9 +279,10 @@ export default function StatsHistoryModal(props: StatsHistoryModalProps) {
 
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+    <div className="rounded-xl bg-slate-50 p-3">
       <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
       <div className="mt-1 text-sm font-semibold text-slate-900">{value}</div>
     </div>
   );
 }
+

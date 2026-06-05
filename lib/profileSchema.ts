@@ -17,7 +17,7 @@ export const PROFILE_SECTIONS: { id: ProfileSectionId; label: string }[] = [
   // ✅ moved here (right under social)
   { id: "photos", label: "Moje fotky & věkové tipy" },
 
-  { id: "stats", label: "Moje statistiky" },
+  { id: "stats", label: "Můj vývoj" },
   { id: "privacy", label: "Soukromí & personalizace" },
   { id: "security", label: "Bezpečnost" },
 ];

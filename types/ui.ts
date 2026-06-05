@@ -21,6 +21,7 @@ export type UiPostImage = {
   // Optional public metadata
   comment?: string | null;
   tags?: string[];
+  aw_directions?: string[];
   challengeTags?: Array<{
     id: string;
     title: string;

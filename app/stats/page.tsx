@@ -17,6 +17,7 @@ import {
   getMyAwScoreTrend,
   getMyGenerationAwPerception,
   getMyImageTagOptions,
+  getMyPowerScoreBreakdownSafe,
   getMyStatsHistory,
   getMyTipCountHistory,
   getMyTopPostsByMetric,
@@ -26,6 +27,7 @@ import {
   type DailyActivityRow,
   type GenerationAwPerceptionRow,
   type ImageTagOption,
+  type PowerScoreBreakdown,
   type StatsHistoryRow,
   type StatsHistoryView,
   type TipCountHistoryView,
@@ -52,6 +54,7 @@ import {
   type WellbeingPlanEntry,
 } from "@/lib/api/wellbeing";
 import { getMyProfileTraffic, type ProfileTrafficSummary, type RecentProfileVisit } from "@/lib/api/profileVisits";
+import { buildReferralUrl, getMyReferralOverview, type ReferralOverview, type ReferralSummaryRow } from "@/lib/api/referrals";
 import type { ContentVisibility } from "@/types/db";
 
 import RealVsGuessedScatter from "@/components/stats/RealVsGuessedScatter";
@@ -86,7 +89,7 @@ const STATS_SECTIONS = [
   },
   {
     id: "posts",
-    title: "Statistiky příspěvků",
+    title: "Vývoj příspěvků",
     description: "Výkon jednotlivých příspěvků, jejich dosah a komentářová aktivita.",
     items: [
       "Nejvýkonnější příspěvky: podle zobrazení, komentářů, reakcí a uložení.",
@@ -133,6 +136,27 @@ const STATS_SECTIONS = [
     items: ["Přesnost tipů.", "Počet provedených tipů po dnech, měsících a letech."],
   },
   {
+    id: "power-score",
+    title: "Power skóre",
+    description: "Aktivita, přesnost a přínos v AW v jednom přehledu. Nemění AW věk ani váhu tipů.",
+    items: [
+      "Power skóre roste s tvou aktivitou a přesností.",
+      "Čím víc tipuješ ostatní, tím větší šanci dostanou tvoje fotky.",
+      "Denní série pomáhá držet rytmus.",
+      "Pozvánky mohou přidat bonus, když se známí aktivně zapojí.",
+    ],
+  },
+  {
+    id: "aw-invites",
+    title: "AW pozvánky",
+    description: "Přehled pozvánek, aktivace a bonusu do Power skóre.",
+    items: [
+      "Bonus běží 30 dní od aktivace pozvánky.",
+      "Aktivace znamená registraci, alespoň 1 fotku a 10 tipů.",
+      "Do bonusu se počítá nejvýše 10 aktivních pozvánek s nejvyšším Power skóre.",
+    ],
+  },
+  {
     id: "aw-score",
     title: "AW skóre",
     description: "Detailní trend, rozklad a největší vlivy na AW skóre.",
@@ -158,6 +182,19 @@ const STATS_SECTIONS = [
 
 const AW_AGE_HELP_TEXT =
   "Graf ukazuje vývoj tvého AW věku v čase.\n\nZelená čára je AW věk, šedá diagonála je referenční věk. Když je zelená níž než diagonála, fotky působí mladším dojmem.\n\nPlná zelená čára spojuje období s dostupnými daty. Přerušovaná zelená čára znamená, že mezi dvěma body chybí fotky nebo výpočet, takže graf jen naznačuje přechod a nedopočítává chybějící roky jako nulu.\n\nPřepínačem Pohled měníš časový rozsah. Kliknutím na zelený bod otevřeš detail daného roku a můžeš přejít na fotky z tohoto období.";
+
+const STATS_GROUP_HELP_KEYS: Record<string, string> = {
+  "AW věk": "stats-aw-age",
+  Aktivita: "stats-activity",
+  "Vývoj příspěvků": "stats-posts",
+  Návštěvnost: "stats-traffic",
+  "Wellbeing / Lifestyle": "stats-wellbeing",
+  Výzvy: "stats-challenges",
+  "Moje přesnost": "stats-accuracy",
+  "Power skóre": "stats-power-score",
+  "AW pozvánky": "stats-aw-invites",
+  "AW skóre": "stats-aw-score",
+};
 
 const WELLBEING_MOOD_OPTIONS: Array<{ value: WellbeingMood; label: string; score: number }> = [
   { value: "lehka", label: "Lehká", score: 8 },
@@ -203,6 +240,25 @@ const WELLBEING_VISIBILITY_OPTIONS: Array<{ value: ContentVisibility; label: str
 
 type StatsSectionId = (typeof STATS_SECTIONS)[number]["id"];
 type StatsSection = (typeof STATS_SECTIONS)[number];
+
+function statsHelpBreadcrumbs(sectionTitle: string, topicTitle?: string) {
+  return [
+    { label: "Nápověda", href: "/help" },
+    { label: "Můj vývoj", href: "/help?section=stats" },
+    {
+      label: sectionTitle,
+      href: `/help?section=stats&group=${encodeURIComponent(sectionTitle)}`,
+    },
+    ...(topicTitle
+      ? [
+          {
+            label: topicTitle,
+            href: `/help?section=stats&group=${encodeURIComponent(sectionTitle)}&topic=${encodeURIComponent(topicTitle)}`,
+          },
+        ]
+      : []),
+  ];
+}
 
 function getStatsSectionId(value: string | null): StatsSectionId {
   return STATS_SECTIONS.some((section) => section.id === value) ? (value as StatsSectionId) : "aw-age";
@@ -266,9 +322,16 @@ export default function ProfileStatsPage() {
   const [topAwPosts, setTopAwPosts] = useState<TopAwInfluencePost[]>([]);
   const [awScoreSectionLoading, setAwScoreSectionLoading] = useState(false);
   const [awScoreSectionError, setAwScoreSectionError] = useState<string | null>(null);
+  const [powerBreakdown, setPowerBreakdown] = useState<PowerScoreBreakdown | null>(null);
+  const [powerBreakdownLoading, setPowerBreakdownLoading] = useState(false);
+  const [powerBreakdownError, setPowerBreakdownError] = useState<string | null>(null);
+  const [referralOverview, setReferralOverview] = useState<ReferralOverview | null>(null);
+  const [referralLoading, setReferralLoading] = useState(false);
+  const [referralError, setReferralError] = useState<string | null>(null);
   const [challengeRows, setChallengeRows] = useState<AwChallengeStatsRow[]>([]);
   const [challengesLoading, setChallengesLoading] = useState(false);
   const [challengesError, setChallengesError] = useState<string | null>(null);
+  const [refreshTick, setRefreshTick] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -291,7 +354,7 @@ export default function ProfileStatsPage() {
 
         setActivityRows(activityRes);
       } catch (e: unknown) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Statistiky se nepodařilo načíst.");
+        if (!cancelled) setError(e instanceof Error ? e.message : "Můj vývoj se nepodařilo načíst.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -302,7 +365,7 @@ export default function ProfileStatsPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeSectionId]);
+  }, [activeSectionId, refreshTick]);
 
   useEffect(() => {
     if (activeSectionId !== "aw-age") return;
@@ -331,7 +394,7 @@ export default function ProfileStatsPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeSectionId]);
+  }, [activeSectionId, refreshTick]);
 
   useEffect(() => {
     if (activeSectionId !== "aw-age") return;
@@ -353,7 +416,7 @@ export default function ProfileStatsPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeSectionId]);
+  }, [activeSectionId, refreshTick]);
 
   useEffect(() => {
     if (activeSectionId !== "my-tips") return;
@@ -386,7 +449,7 @@ export default function ProfileStatsPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeSectionId, tipHistoryView, tipCountView]);
+  }, [activeSectionId, tipHistoryView, tipCountView, refreshTick]);
 
   useEffect(() => {
     if (activeSectionId !== "posts") return;
@@ -403,7 +466,7 @@ export default function ProfileStatsPage() {
       } catch (topPostsLoadError: unknown) {
         if (!cancelled) {
           setTopPostRows([]);
-          setTopPostsError(topPostsLoadError instanceof Error ? topPostsLoadError.message : "Statistiky příspěvků se nepodařilo načíst.");
+          setTopPostsError(topPostsLoadError instanceof Error ? topPostsLoadError.message : "Vývoj příspěvků se nepodařilo načíst.");
         }
       } finally {
         if (!cancelled) setTopPostsLoading(false);
@@ -415,7 +478,7 @@ export default function ProfileStatsPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeSectionId, topPostMetric, topPostSortDirection]);
+  }, [activeSectionId, topPostMetric, topPostSortDirection, refreshTick]);
 
   useEffect(() => {
     if (activeSectionId !== "aw-score") return;
@@ -448,7 +511,63 @@ export default function ProfileStatsPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeSectionId, awTrendGranularity]);
+  }, [activeSectionId, awTrendGranularity, refreshTick]);
+
+  useEffect(() => {
+    if (activeSectionId !== "power-score") return;
+
+    let cancelled = false;
+
+    async function loadPowerScoreBreakdown() {
+      setPowerBreakdownLoading(true);
+      setPowerBreakdownError(null);
+
+      try {
+        const result = await getMyPowerScoreBreakdownSafe();
+        if (cancelled) return;
+
+        setPowerBreakdown(result.data);
+        setPowerBreakdownError(result.errorMessage);
+      } finally {
+        if (!cancelled) setPowerBreakdownLoading(false);
+      }
+    }
+
+    void loadPowerScoreBreakdown();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSectionId, refreshTick]);
+
+  useEffect(() => {
+    if (activeSectionId !== "aw-invites") return;
+
+    let cancelled = false;
+
+    async function loadReferralOverview() {
+      setReferralLoading(true);
+      setReferralError(null);
+
+      try {
+        const data = await getMyReferralOverview();
+        if (!cancelled) setReferralOverview(data);
+      } catch (referralLoadError: unknown) {
+        if (!cancelled) {
+          setReferralOverview(null);
+          setReferralError(referralLoadError instanceof Error ? referralLoadError.message : "AW pozvánky se nepodařilo načíst.");
+        }
+      } finally {
+        if (!cancelled) setReferralLoading(false);
+      }
+    }
+
+    void loadReferralOverview();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSectionId, refreshTick]);
 
   useEffect(() => {
     if (activeSectionId !== "challenges") return;
@@ -477,7 +596,11 @@ export default function ProfileStatsPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeSectionId]);
+  }, [activeSectionId, refreshTick]);
+
+  function refreshCurrentSection() {
+    setRefreshTick((value) => value + 1);
+  }
 
   const availableTagMap = useMemo(() => new Map(availableTags.map((option) => [option.tag, option])), [availableTags]);
   const customTagMatches = useMemo(() => {
@@ -516,6 +639,7 @@ export default function ProfileStatsPage() {
         countRows={tipCountRows}
         loading={tipChartsLoading}
         error={tipChartsError}
+        onRefresh={refreshCurrentSection}
       />
     );
   }
@@ -530,8 +654,25 @@ export default function ProfileStatsPage() {
         topPosts={topAwPosts}
         loading={awScoreSectionLoading}
         error={awScoreSectionError}
+        onRefresh={refreshCurrentSection}
       />
     );
+  }
+
+  if (activeSectionId === "power-score") {
+    return (
+      <PowerScoreStatsSection
+        section={activeSection}
+        breakdown={powerBreakdown}
+        loading={powerBreakdownLoading}
+        error={powerBreakdownError}
+        onRefresh={refreshCurrentSection}
+      />
+    );
+  }
+
+  if (activeSectionId === "aw-invites") {
+    return <AwInvitesStatsSection section={activeSection} overview={referralOverview} loading={referralLoading} error={referralError} onRefresh={refreshCurrentSection} />;
   }
 
   if (activeSectionId === "posts") {
@@ -544,6 +685,7 @@ export default function ProfileStatsPage() {
         rows={topPostRows}
         loading={topPostsLoading}
         error={topPostsError}
+        onRefresh={refreshCurrentSection}
       />
     );
   }
@@ -557,22 +699,37 @@ export default function ProfileStatsPage() {
   }
 
   if (activeSectionId === "challenges") {
-    return <ChallengesStatsSection section={activeSection} rows={challengeRows} loading={challengesLoading} error={challengesError} />;
+    return <ChallengesStatsSection section={activeSection} rows={challengeRows} loading={challengesLoading} error={challengesError} onRefresh={refreshCurrentSection} />;
   }
 
   if (activeSectionId === "aw-age") {
     return (
       <div className="space-y-6">
-        <StatsPageHeader title={activeSection.title} description={activeSection.description} />
+        <StatsPageHeader
+          title={activeSection.title}
+          description={activeSection.description}
+          rightSlot={
+            <RefreshIconButton
+              onClick={refreshCurrentSection}
+              disabled={generationLoading}
+              activeIconPath="/ui/refresh-rot.gif"
+              activeDurationMs={5000}
+              title="Aktualizovat AW věk"
+              ariaLabel="Aktualizovat AW věk"
+            />
+          }
+        />
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl bg-white p-5">
           <div className="relative min-h-[72px]">
             <div className="-ml-2 pr-24 text-sm font-semibold text-slate-900 sm:-ml-3">AW věk v čase</div>
 
             <div className="absolute right-0 top-0 flex items-center justify-end gap-2">
               <HelpIconButton
                 helpText={AW_AGE_HELP_TEXT}
+                helpKey="aw-age-time"
                 modalTitle="Nápověda - AW věk v čase"
+                breadcrumbs={statsHelpBreadcrumbs("AW věk", "AW věk v čase")}
                 className="p-2"
                 iconClassName="h-5 w-5"
               />
@@ -585,7 +742,7 @@ export default function ProfileStatsPage() {
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={hasActiveChartFilters ? "/funnel-full.ico" : "/funnel-empty.ico"}
+                  src={hasActiveChartFilters ? "/icons/action/filter-full.png" : "/icons/action/filter-empty.png"}
                   alt=""
                   className="h-5 w-5"
                 />
@@ -610,7 +767,7 @@ export default function ProfileStatsPage() {
           </div>
 
           {filtersOpen ? (
-            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+            <div className="mt-4 rounded-2xl bg-slate-50 p-3">
               <div className="flex flex-col gap-3">
                 <div>
                   <div className="text-xs font-semibold text-slate-700">Tagy</div>
@@ -703,11 +860,11 @@ export default function ProfileStatsPage() {
           ) : null}
 
           <div className="mt-4">
-            <AwAgeTrajectoryChart view={awAgeView} tags={selectedTags} includeExperimental={includeExperimental} />
+            <AwAgeTrajectoryChart view={awAgeView} tags={selectedTags} includeExperimental={includeExperimental} refreshKey={refreshTick} />
           </div>
         </div>
 
-        <RealVsGuessedScatter tags={selectedTags} includeExperimental={includeExperimental} />
+        <RealVsGuessedScatter tags={selectedTags} includeExperimental={includeExperimental} refreshKey={refreshTick} />
 
         <GenerationAwPerceptionTable rows={generationRows} loading={generationLoading} error={generationError} />
       </div>
@@ -722,6 +879,7 @@ export default function ProfileStatsPage() {
         rows={activityRows}
         loading={loading}
         error={error}
+        onRefresh={refreshCurrentSection}
       />
     );
   }
@@ -743,23 +901,38 @@ function StatsPageHeader({
   const helpText = [description, ...(items ?? [])].filter(Boolean).join("\n\n");
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Statistiky</div>
+    <div className="rounded-2xl bg-gradient-to-br from-[#e8fbe8] via-white to-white p-5 shadow-[0_12px_30px_rgba(50,205,50,0.10)]">
+      <div className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Můj vývoj</div>
       <div className="mt-2 flex items-start justify-between gap-3">
         <h1 className="text-2xl font-bold text-slate-950">{title}</h1>
         <div className="flex shrink-0 items-center gap-2">
-          {rightSlot}
           {helpText ? (
             <HelpIconButton
               helpText={helpText}
+              helpKey={STATS_GROUP_HELP_KEYS[title]}
               modalTitle={`Nápověda - ${title}`}
+              breadcrumbs={statsHelpBreadcrumbs(title)}
               className="p-1"
               iconClassName="h-4 w-4"
             />
           ) : null}
+          {rightSlot}
         </div>
       </div>
     </div>
+  );
+}
+
+function StatsRefreshButton({ onClick, disabled, label }: { onClick: () => void; disabled: boolean; label: string }) {
+  return (
+    <RefreshIconButton
+      onClick={onClick}
+      disabled={disabled}
+      activeIconPath="/ui/refresh-rot.gif"
+      activeDurationMs={5000}
+      title={label}
+      ariaLabel={label}
+    />
   );
 }
 
@@ -768,7 +941,7 @@ function StatsSectionPlaceholder({ title, description, items }: { title: string;
     <div className="space-y-6">
       <StatsPageHeader title={title} />
 
-      <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center shadow-sm">
+      <div className="p-0 text-center">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-xl font-black text-emerald-700">
           AW
         </div>
@@ -794,18 +967,20 @@ function ActivityStatsSection({
   rows,
   loading,
   error,
+  onRefresh,
 }: {
   title: string;
   description: string;
   rows: DailyActivityRow[];
   loading: boolean;
   error: string | null;
+  onRefresh: () => void;
 }) {
   if (loading) {
     return (
       <div className="space-y-6">
-        <StatsPageHeader title={title} description={description} />
-        <div className="rounded-xl bg-white p-6 shadow">Načítám aktivitu…</div>
+        <StatsPageHeader title={title} description={description} rightSlot={<StatsRefreshButton onClick={onRefresh} disabled={loading} label="Aktualizovat aktivitu" />} />
+        <div className="rounded-xl bg-white p-6">Načítám aktivitu…</div>
       </div>
     );
   }
@@ -813,22 +988,24 @@ function ActivityStatsSection({
   if (error) {
     return (
       <div className="space-y-6">
-        <StatsPageHeader title={title} description={description} />
-        <div className="rounded-xl bg-white p-6 text-rose-700 shadow">{error}</div>
+        <StatsPageHeader title={title} description={description} rightSlot={<StatsRefreshButton onClick={onRefresh} disabled={loading} label="Aktualizovat aktivitu" />} />
+        <div className="rounded-xl bg-white p-6 text-rose-700">{error}</div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <StatsPageHeader title={title} description={description} />
+      <StatsPageHeader title={title} description={description} rightSlot={<StatsRefreshButton onClick={onRefresh} disabled={loading} label="Aktualizovat aktivitu" />} />
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="rounded-2xl bg-white p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="text-sm font-semibold text-slate-900">Aktivita po dnech</div>
           <HelpIconButton
             helpText="Historie po dnech za posledních až 50 dní: fotky, posty, komentáře, tipy a lajky."
+            helpKey="activity-days"
             modalTitle="Nápověda - aktivita po dnech"
+            breadcrumbs={statsHelpBreadcrumbs("Aktivita", "Aktivita po dnech")}
             className="shrink-0 p-1"
             iconClassName="h-4 w-4"
           />
@@ -1037,6 +1214,7 @@ function PostsStatsSection({
   rows,
   loading,
   error,
+  onRefresh,
 }: {
   section: StatsSection;
   metric: TopPostMetric;
@@ -1045,17 +1223,20 @@ function PostsStatsSection({
   rows: TopPostStatsRow[];
   loading: boolean;
   error: string | null;
+  onRefresh: () => void;
 }) {
   return (
     <div className="space-y-6">
-      <StatsPageHeader title={section.title} />
+      <StatsPageHeader title={section.title} rightSlot={<StatsRefreshButton onClick={onRefresh} disabled={loading} label="Aktualizovat vývoj příspěvků" />} />
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="rounded-2xl bg-white p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="text-sm font-semibold text-slate-900">Top 10 příspěvků</div>
           <HelpIconButton
             helpText="Tabulka ukazuje tvých 10 nejlepších příspěvků podle zvoleného sloupce.\n\nKomentáře zahrnují komentáře k příspěvku i komentáře k fotkám v příspěvku. Lajky jsou zatím součtem lajků na fotkách v příspěvku. Tipy jsou součtem tipů na fotkách v příspěvku.\n\nZobrazení jsou připravená jako metrika, ale zatím se v databázi nesbírají, takže budou nulová, dokud nepřidáme tracking zobrazení."
+            helpKey="top-posts"
             modalTitle="Nápověda - top příspěvky"
+            breadcrumbs={statsHelpBreadcrumbs("Vývoj příspěvků", "Top 10 příspěvků")}
             className="shrink-0 p-1"
             iconClassName="h-4 w-4"
           />
@@ -1127,6 +1308,7 @@ function TrafficStatsSection({ section }: { section: StatsSection }) {
   const [traffic, setTraffic] = useState<ProfileTrafficSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshTick, setRefreshTick] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -1153,11 +1335,15 @@ function TrafficStatsSection({ section }: { section: StatsSection }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [refreshTick]);
 
   return (
     <div className="space-y-6">
-      <StatsPageHeader title={section.title} description={section.description} />
+      <StatsPageHeader
+        title={section.title}
+        description={section.description}
+        rightSlot={<StatsRefreshButton onClick={() => setRefreshTick((value) => value + 1)} disabled={loading} label="Aktualizovat návštěvnost" />}
+      />
 
       <div className="grid gap-3 sm:grid-cols-2">
         <TrafficSummaryCard label="Návštěvy profilu za 30 dní" value={traffic?.totalVisits ?? 0} loading={loading} />
@@ -1167,6 +1353,8 @@ function TrafficStatsSection({ section }: { section: StatsSection }) {
       <StatsMiniChart
         title="Návštěvy profilu"
         helpText="Graf ukazuje počet zobrazení tvé profilové karty za posledních 30 dní.\n\nVlastní zobrazení vlastního profilu se nepočítá. Kvůli ochraně proti opakovanému zápisu se stejné zobrazení ze stejného prohlížeče zapíše nejvýše jednou za 30 minut."
+        helpKey="profile-visits"
+        helpBreadcrumbs={statsHelpBreadcrumbs("Návštěvnost", "Návštěvy profilu")}
         points={(traffic?.trend ?? []).map((point) => ({ label: point.label, value: point.count }))}
         loading={loading}
         error={error}
@@ -1183,7 +1371,7 @@ function TrafficStatsSection({ section }: { section: StatsSection }) {
 
 function TrafficSummaryCard({ label, value, loading }: { label: string; value: number; loading: boolean }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="rounded-2xl bg-white p-5">
       <div className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">{label}</div>
       <div className="mt-2 text-3xl font-black tabular-nums text-slate-950">{loading ? "…" : value}</div>
     </div>
@@ -1212,7 +1400,7 @@ function RecentProfileVisitsTable({
   error: string | null;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="rounded-2xl bg-white p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-sm font-semibold text-slate-900">Poslední návštěvy profilu</div>
@@ -1220,7 +1408,9 @@ function RecentProfileVisitsTable({
         </div>
         <HelpIconButton
           helpText="Seznam ukazuje, kdo si zobrazil tvoji veřejnou profilovou kartu a kdy.\n\nVidíš pouze návštěvy svého profilu. Ostatní uživatelé tvoje návštěvy nevidí."
+          helpKey="recent-visits"
           modalTitle="Nápověda - poslední návštěvy"
+          breadcrumbs={statsHelpBreadcrumbs("Návštěvnost", "Poslední návštěvy")}
           className="shrink-0 p-1"
           iconClassName="h-4 w-4"
         />
@@ -1244,7 +1434,7 @@ function RecentProfileVisitsTable({
 
               <tbody>
                 {rows.map((row, index) => {
-                  const label = row.viewerDisplayName?.trim() || row.viewerUserId;
+                  const label = row.viewerDisplayName?.trim() || "Uživatel";
 
                   return (
                     <tr key={row.id || `${row.viewerUserId}-${row.viewedAt}`} className={index % 2 === 0 ? "bg-white" : "bg-slate-50/70"}>
@@ -1260,7 +1450,6 @@ function RecentProfileVisitsTable({
                           </div>
                           <div>
                             <div className="text-sm font-semibold text-slate-900">{label}</div>
-                            <div className="text-xs text-slate-500">{row.viewerUserId}</div>
                           </div>
                         </Link>
                       </td>
@@ -1473,13 +1662,13 @@ function WellbeingStatsSection({ section }: { section: StatsSection }) {
             disabled={entriesLoading}
             activeIconPath="/ui/refresh-rot.gif"
             activeDurationMs={5000}
-            title="Aktualizovat statistiky"
-            ariaLabel="Aktualizovat statistiky"
+            title="Aktualizovat můj vývoj"
+            ariaLabel="Aktualizovat můj vývoj"
           />
         }
       />
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="rounded-2xl bg-white p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-sm font-semibold text-slate-900">Dnešní zápis</div>
@@ -1488,7 +1677,7 @@ function WellbeingStatsSection({ section }: { section: StatsSection }) {
         </div>
 
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          <label className="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+          <label className="grid gap-1 rounded-2xl bg-slate-50 p-3">
             <WellbeingFieldLabel label="Nálada" />
             <select
               value={mood}
@@ -1504,7 +1693,7 @@ function WellbeingStatsSection({ section }: { section: StatsSection }) {
             </select>
           </label>
 
-          <label className="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+          <label className="grid gap-1 rounded-2xl bg-slate-50 p-3">
             <WellbeingFieldLabel label="Energie" />
             <select
               value={energy}
@@ -1520,7 +1709,7 @@ function WellbeingStatsSection({ section }: { section: StatsSection }) {
             </select>
           </label>
 
-          <label className="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+          <label className="grid gap-1 rounded-2xl bg-slate-50 p-3">
             <WellbeingFieldLabel label="Spánek" />
             <select
               value={sleep}
@@ -1536,7 +1725,7 @@ function WellbeingStatsSection({ section }: { section: StatsSection }) {
             </select>
           </label>
 
-          <label className="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+          <label className="grid gap-1 rounded-2xl bg-slate-50 p-3">
             <WellbeingFieldLabel label="Pohyb" />
             <select
               value={movement}
@@ -1552,7 +1741,7 @@ function WellbeingStatsSection({ section }: { section: StatsSection }) {
             </select>
           </label>
 
-          <label className="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+          <label className="grid gap-1 rounded-2xl bg-slate-50 p-3">
             <WellbeingFieldLabel label="Tekutiny" />
             <select
               value={water}
@@ -1568,7 +1757,7 @@ function WellbeingStatsSection({ section }: { section: StatsSection }) {
             </select>
           </label>
 
-          <label className="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+          <label className="grid gap-1 rounded-2xl bg-slate-50 p-3">
             <WellbeingFieldLabel label="Strava" />
             <select
               value={foodAmount}
@@ -1605,7 +1794,9 @@ function WellbeingStatsSection({ section }: { section: StatsSection }) {
               <div className="text-xs font-semibold uppercase tracking-wide text-cyan-800">Dnešní rytmus</div>
               <HelpIconButton
                 helpText="Tady je souhrn dnešního zápisu a jeho ovládání.\n\nNahoře vidíš rychlý přehled energie, spánku, pohybu a tekutin. Níže nastavuješ viditelnost celého dnešního zápisu: Všichni, Kontakty nebo Soukromé.\n\nVýchozí viditelnost se načítá z nastavení profilu. Tlačítko Uložit dnešní zápis uloží všechny vyplněné položky najednou. Hodnota --- znamená, že danou položku pro dnešek nechceš vyplnit."
+                helpKey="today-rhythm"
                 modalTitle="Nápověda - dnešní rytmus"
+                breadcrumbs={statsHelpBreadcrumbs("Wellbeing / Lifestyle", "Dnešní rytmus")}
                 className="shrink-0 p-1"
                 iconClassName="h-4 w-4"
               />
@@ -1641,7 +1832,7 @@ function WellbeingStatsSection({ section }: { section: StatsSection }) {
           <div className="mt-1 text-sm text-slate-600">Přehled uložených denních zápisů a jejich zpětná editace.</div>
         </div>
 
-        <div className="inline-flex rounded-xl bg-white p-1 shadow-sm">
+        <div className="inline-flex rounded-xl bg-white p-1">
           <AwButton
             variant={historyTab === "overview" ? "primary" : "tertiary"}
             onClick={() => setHistoryTab("overview")}
@@ -1943,7 +2134,7 @@ function WellbeingHistoryTable({
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="rounded-2xl bg-white p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="text-sm font-semibold text-slate-900">Editace historie</div>
@@ -1961,7 +2152,7 @@ function WellbeingHistoryTable({
       </div>
 
       {selectedDates.length > 1 ? (
-        <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+        <div className="mt-4 rounded-xl bg-emerald-50 p-3">
           <div className="mb-2 text-xs font-semibold text-emerald-900">Hromadná editace vybraných dnů</div>
           <div className="grid grid-cols-[40px_42px_88px_82px_82px_88px_82px_112px_minmax(120px,1fr)_140px] gap-2">
             {["", "Den", "Nálada", "Energie", "Spánek", "Pohyb", "Tekutiny", "Množství stravy", "Druh stravy", "Viditelnost"].map((label, index) => (
@@ -2201,7 +2392,9 @@ function WellbeingPlansSection({
         <div className="flex items-center gap-1">
           <HelpIconButton
             helpText="Plány a návyky jsou dopředné nastavení pro spánek, pohyb, tekutiny a stravu.\n\nNa rozdíl od historie je možné upravovat i budoucí dny. Změny se ukládají až tlačítkem Uložit změny, aby tabulka nereagovala pomalu po každé položce.\n\nPokud plánovaný den už nastal, jeho plán se v historických grafech ukáže světle vedle skutečného zápisu."
+            helpKey="plans-habits"
             modalTitle="Nápověda - plány a návyky"
+            breadcrumbs={statsHelpBreadcrumbs("Wellbeing / Lifestyle", "Plány a návyky")}
             className="p-1"
             iconClassName="h-4 w-4"
           />
@@ -2216,7 +2409,7 @@ function WellbeingPlansSection({
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="rounded-2xl bg-white p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm font-semibold text-slate-900">Přehled měsíce</div>
           <div className="flex flex-wrap items-center gap-2">
@@ -2232,7 +2425,7 @@ function WellbeingPlansSection({
         </div>
 
         {selectedPlanDates.length > 1 ? (
-          <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+          <div className="mt-4 rounded-xl bg-emerald-50 p-3">
             <div className="mb-2 text-xs font-semibold text-emerald-900">Hromadná editace plánů</div>
             <div className="grid grid-cols-[76px_96px_repeat(5,minmax(92px,1fr))] gap-2">
               {["Vybráno", "Den", "Spánek", "Pohyb", "Tekutiny", "Množství stravy", "Druh stravy"].map((label) => (
@@ -2442,11 +2635,13 @@ function ChallengesStatsSection({
   rows,
   loading,
   error,
+  onRefresh,
 }: {
   section: StatsSection;
   rows: AwChallengeStatsRow[];
   loading: boolean;
   error: string | null;
+  onRefresh: () => void;
 }) {
   const activeCount = rows.filter((row) => row.challenge.status === "active").length;
   const publicCount = rows.filter((row) => row.challenge.visibility === "everyone").length;
@@ -2467,7 +2662,7 @@ function ChallengesStatsSection({
 
   return (
     <div className="space-y-6">
-      <StatsPageHeader title={section.title} description={section.description} items={[...section.items]} />
+      <StatsPageHeader title={section.title} description={section.description} items={[...section.items]} rightSlot={<StatsRefreshButton onClick={onRefresh} disabled={loading} label="Aktualizovat výzvy" />} />
 
       <div className="grid gap-3 md:grid-cols-5">
         <StatsSummaryCell label="Aktivní výzvy" value={String(activeCount)} />
@@ -2493,7 +2688,7 @@ function ChallengesStatsSection({
             const pct = total > 0 ? Math.min(100, Math.max(0, Math.round((elapsed / total) * 100))) : 0;
 
             return (
-              <div key={challenge.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div key={challenge.id} className="rounded-2xl bg-white p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <Link href={`/challenges/${challenge.id}`} className="text-base font-bold text-slate-950 hover:text-emerald-700 hover:underline">
@@ -2520,7 +2715,7 @@ function ChallengesStatsSection({
                     <span>{formatDateCZ(challenge.target_date_current)}</span>
                   </div>
                   <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
-                    <div className="h-full rounded-full bg-emerald-600" style={{ width: `${pct}%` }} />
+                    <div className="h-full rounded-full bg-[#32CD32]" style={{ width: `${pct}%` }} />
                   </div>
                 </div>
               </div>
@@ -2529,12 +2724,14 @@ function ChallengesStatsSection({
         </div>
       ) : null}
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="rounded-2xl bg-white p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="text-sm font-semibold text-slate-900">Moje výzvy</div>
           <HelpIconButton
             helpText="Statistika výzev zatím používá uložené hodnoty výzvy: startovní AW skóre, cílové AW skóre, termín, viditelnost a rozsah fotek.\n\nAW skóre se nepočítá jinak. Výzva jen porovnává hodnotu na začátku a na konci podle existujících pravidel."
+            helpKey="challenge-stats"
             modalTitle="Nápověda - statistika výzev"
+            breadcrumbs={statsHelpBreadcrumbs("Výzvy", "Moje výzvy")}
             className="shrink-0 p-1"
             iconClassName="h-4 w-4"
           />
@@ -2608,9 +2805,345 @@ function ChallengesStatsSection({
 
 function StatsSummaryCell({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="rounded-2xl bg-white p-5">
       <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
       <div className="mt-1 text-lg font-bold text-slate-950">{value}</div>
+    </div>
+  );
+}
+
+function formatPowerValue(value: number | null | undefined, decimals = 1) {
+  return typeof value === "number" && Number.isFinite(value) ? value.toFixed(decimals) : "—";
+}
+
+function buildPowerScoreRecommendation(breakdown: PowerScoreBreakdown | null) {
+  const raw = breakdown?.raw;
+  if (!raw) return "Power skóre roste s tvou aktivitou a přesností.";
+  if ((raw.tipsToday ?? 0) < 10) return "Dej dnes 10 tipů ostatním.";
+  if ((raw.uploads30d ?? 0) === 0) return "Nahraj novou fotku.";
+  if ((raw.currentStreakDays ?? 0) === 0 || raw.streakDoneToday === false) return "Udrž dnešní sérii jedním tipem.";
+  return "Pozvi známé, ať se zapojí.";
+}
+
+function PowerScoreStatsSection({
+  section,
+  breakdown,
+  loading,
+  error,
+  onRefresh,
+}: {
+  section: StatsSection;
+  breakdown: PowerScoreBreakdown | null;
+  loading: boolean;
+  error: string | null;
+  onRefresh: () => void;
+}) {
+  const progress = Math.max(0, Math.min(100, breakdown?.progressToNextLevelPct ?? 0));
+  const recommendation = buildPowerScoreRecommendation(breakdown);
+  const raw = breakdown?.raw;
+
+  const rows = breakdown
+    ? [
+        {
+          label: "Tipování",
+          value: formatPowerValue(breakdown.parts.tipping),
+          detail: `${(raw?.guessesPublic90d ?? 0) + (raw?.guessesAnonymous90d ?? 0)} tipů za 90 dní`,
+          show: breakdown.parts.tipping !== null,
+        },
+        {
+          label: "Přesnost",
+          value: breakdown.parts.accuracy !== null ? `${breakdown.parts.accuracy.toFixed(1)} %` : "Připravujeme",
+          detail: "Průměrná přesnost za 90 dní",
+          show: breakdown.parts.accuracy !== null,
+        },
+        {
+          label: "Aktivní dny",
+          value: formatPowerValue(breakdown.parts.activeDays),
+          detail: `${raw?.activeDays90d ?? 0} aktivních dní za 90 dní`,
+          show: breakdown.parts.activeDays !== null,
+        },
+        {
+          label: "Fotky",
+          value: formatPowerValue(breakdown.parts.uploads),
+          detail: `${raw?.uploads90d ?? 0} nahrávek za 90 dní`,
+          show: breakdown.parts.uploads !== null,
+        },
+        {
+          label: "Série",
+          value: breakdown.parts.streak !== null ? `${Math.round(breakdown.parts.streak)} dní` : "Připravujeme",
+          detail: "Souvislý rytmus tipování",
+          show: true,
+        },
+        {
+          label: "AW pozvánky",
+          value: breakdown.parts.referrals !== null ? formatPowerValue(breakdown.parts.referrals) : "Připravujeme",
+          detail: "Bonus za aktivní pozvánky. Detail najdeš v sekci AW pozvánky.",
+          show: true,
+        },
+        {
+          label: "Penalizace",
+          value: formatPowerValue(breakdown.parts.penalties),
+          detail: `${raw?.rejectedPhotos360d ?? 0} odmítnutých fotek za 360 dní`,
+          show: typeof breakdown.parts.penalties === "number" && breakdown.parts.penalties < 0,
+          tone: "text-rose-700",
+        },
+      ].filter((row) => row.show)
+    : [];
+
+  return (
+    <div className="space-y-6">
+      <StatsPageHeader title={section.title} description={section.description} items={[...section.items]} rightSlot={<StatsRefreshButton onClick={onRefresh} disabled={loading} label="Aktualizovat Power skóre" />} />
+
+      {loading ? <div className="rounded-2xl bg-slate-50 p-5 text-sm text-slate-600">Načítám Power skóre...</div> : null}
+      {error ? <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm text-rose-700">{error}</div> : null}
+
+      {!loading && !error && breakdown ? (
+        <>
+          <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+            <div className="rounded-2xl bg-white p-5">
+              <div className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Aktuálně</div>
+              <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <div className="text-5xl font-black tracking-tight text-slate-950">{formatPowerValue(breakdown.powerScore)}</div>
+                  <div className="mt-2 text-sm text-slate-600">Power skóre roste s tvou aktivitou a přesností.</div>
+                </div>
+                <div className="rounded-xl bg-emerald-50 px-4 py-3">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Level</div>
+                  <div className="mt-1 text-xl font-black text-emerald-950">{breakdown.level}</div>
+                </div>
+              </div>
+              <div className="mt-4 text-sm text-slate-600">
+                Power skóre není krása ani hodnota člověka. Nemění AW věk ani váhu tipů.
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-white p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm font-bold text-slate-950">Další level</div>
+                  <div className="mt-1 text-sm text-slate-600">
+                    {breakdown.nextLevel && breakdown.nextLevelAt !== null
+                      ? `${breakdown.nextLevel} od ${breakdown.nextLevelAt} bodů`
+                      : "Jsi na nejvyšší připravené úrovni."}
+                  </div>
+                </div>
+                <div className="text-right text-sm font-black text-emerald-700">{Math.round(progress)} %</div>
+              </div>
+              <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100">
+                <div className="h-full rounded-full bg-[#32CD32] transition-all" style={{ width: `${progress}%` }} />
+              </div>
+              <div className="mt-4 text-sm text-slate-600">Vyšší úroveň může zrychlit odhalení výsledků.</div>
+              {breakdown.revealDelayDays !== null ? (
+                <div className="mt-2 text-xs font-semibold text-slate-500">Produktová orientace: {breakdown.revealDelayDays} dní.</div>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-white p-5">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <div className="text-sm font-bold text-slate-950">Rozpad skóre</div>
+                <div className="mt-1 text-sm text-slate-600">Dostupné části z aktuálního výpočtu a vlastních agregací.</div>
+              </div>
+              <div className="text-sm font-semibold text-emerald-700">{recommendation}</div>
+            </div>
+
+            <div className="mt-4 divide-y divide-slate-100 overflow-hidden rounded-xl">
+              {rows.map((row) => (
+                <div key={row.label} className="grid gap-2 bg-white px-4 py-3 sm:grid-cols-[180px_1fr_120px] sm:items-center">
+                  <div className="text-sm font-semibold text-slate-900">{row.label}</div>
+                  <div className="text-sm text-slate-600">{row.detail}</div>
+                  <div className={`text-left text-sm font-black sm:text-right ${row.tone ?? "text-slate-950"}`}>{row.value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-2xl bg-white p-5">
+              <div className="text-sm font-bold text-slate-950">Co skóre posune dál</div>
+              <div className="mt-2 text-lg font-black text-slate-950">{recommendation}</div>
+              <div className="mt-3 text-sm text-slate-600">Čím víc tipuješ ostatní, tím větší šanci dostanou tvoje fotky.</div>
+            </div>
+            <div className="rounded-2xl bg-white p-5">
+              <div className="text-sm font-bold text-slate-950">Rytmus</div>
+              <div className="mt-2 text-lg font-black text-slate-950">Denní série pomáhá držet rytmus.</div>
+              <div className="mt-3 text-sm text-slate-600">Pozvánky mohou přidat bonus, když se známí aktivně zapojí.</div>
+            </div>
+          </div>
+        </>
+      ) : null}
+
+      {!loading && !error && !breakdown ? (
+        <div className="rounded-2xl bg-slate-50 p-5 text-sm text-slate-600">Power skóre zatím není dostupné.</div>
+      ) : null}
+    </div>
+  );
+}
+
+function formatReferralDate(value: string | null) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("cs-CZ");
+}
+
+function referralStatusLabel(status: ReferralSummaryRow["status"]) {
+  if (status === "active") return "aktivní";
+  if (status === "expired") return "vypršelo";
+  return "čeká na aktivaci";
+}
+
+function referralStatusClass(status: ReferralSummaryRow["status"]) {
+  if (status === "active") return "bg-emerald-50 text-emerald-800";
+  if (status === "expired") return "bg-slate-100 text-slate-600";
+  return "bg-amber-50 text-amber-800";
+}
+
+function AwInvitesStatsSection({
+  section,
+  overview,
+  loading,
+  error,
+  onRefresh,
+}: {
+  section: StatsSection;
+  overview: ReferralOverview | null;
+  loading: boolean;
+  error: string | null;
+  onRefresh: () => void;
+}) {
+  const referralUrl = overview?.slug ? buildReferralUrl(overview.slug) : "";
+  const [copiedReferralUrl, setCopiedReferralUrl] = useState(false);
+  const countedReferralIds = useMemo(
+    () =>
+      new Set(
+        (overview?.rows ?? [])
+          .filter((row) => row.referredUserId && row.status === "active")
+          .slice()
+          .sort((a, b) => b.referredPowerScore - a.referredPowerScore)
+          .slice(0, 10)
+          .map((row) => row.referredUserId)
+      ),
+    [overview?.rows]
+  );
+
+  async function copyReferralUrl() {
+    if (!referralUrl) return;
+
+    try {
+      await navigator.clipboard.writeText(referralUrl);
+      setCopiedReferralUrl(true);
+      window.setTimeout(() => setCopiedReferralUrl(false), 1800);
+    } catch {
+      setCopiedReferralUrl(false);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <StatsPageHeader title={section.title} description={section.description} items={[...section.items]} rightSlot={<StatsRefreshButton onClick={onRefresh} disabled={loading} label="Aktualizovat AW pozvánky" />} />
+
+      {loading ? <div className="rounded-2xl bg-slate-50 p-5 text-sm text-slate-600">Načítám AW pozvánky...</div> : null}
+      {error ? <div className="rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm text-rose-700">{error}</div> : null}
+
+      {!loading && !error && overview ? (
+        <>
+          <div className="grid gap-4 md:grid-cols-4">
+            <StatsSummaryCell label="Bonus do Power skóre" value={`+${formatPowerValue(overview.activeBonusScore)}`} />
+            <StatsSummaryCell label="Aktivní pozvánky" value={`${overview.activeCount}/10`} />
+            <StatsSummaryCell label="Čeká na aktivaci" value={String(overview.pendingCount)} />
+            <StatsSummaryCell label="Použití odkazu" value={String(overview.totalUsedCount)} />
+          </div>
+
+          <div className="rounded-2xl bg-emerald-50/60 p-5">
+            <div>
+              <div className="text-sm font-bold text-slate-950">Tvůj AW odkaz</div>
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+                <div className="min-w-0 rounded-xl bg-white px-3 py-2 text-sm font-bold text-slate-900">{referralUrl}</div>
+                <button
+                  type="button"
+                  onClick={() => void copyReferralUrl()}
+                  disabled={!referralUrl}
+                  className="rounded-xl bg-[#32CD32] px-4 py-2 text-sm font-bold text-white hover:bg-[#28b828] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {copiedReferralUrl ? "Zkopírováno" : "Kopírovat odkaz"}
+                </button>
+              </div>
+            </div>
+            <p className="mt-3 text-sm text-slate-700">
+              Pozvánku se svým odkazem si můžeš připravit ve svém{" "}
+              <Link href="/profile/basic" className="font-bold text-emerald-800 hover:underline">
+                profilu
+              </Link>
+              .
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-white p-5">
+            <div className="text-sm font-bold text-slate-950">Přehled pozvánek</div>
+
+            {overview.rows.length === 0 ? (
+              <div className="mt-4 rounded-2xl bg-slate-50 p-5 text-sm text-slate-600">
+                Zatím nikdo nepoužil tvůj AW odkaz.
+              </div>
+            ) : (
+              <div className="mt-4 overflow-x-auto">
+                <table className="min-w-full overflow-hidden rounded-xl border-separate border-spacing-0">
+                  <thead>
+                    <tr className="bg-slate-100 text-slate-700">
+                      <th className="border-b border-slate-200 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Uživatel</th>
+                      <th className="border-b border-slate-200 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Stav</th>
+                      <th className="border-b border-slate-200 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide">Power skóre</th>
+                      <th className="border-b border-slate-200 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide">Tvůj bonus</th>
+                      <th className="border-b border-slate-200 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">Vyprší</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {overview.rows.map((row, index) => {
+                        const counted = row.referredUserId ? countedReferralIds.has(row.referredUserId) : false;
+                        return (
+                          <tr key={row.referredUserId ?? `${row.registeredAt}-${index}`} className={index % 2 === 0 ? "bg-white" : "bg-slate-50/70"}>
+                            <td className="border-b border-slate-100 px-4 py-3 text-sm font-semibold text-slate-900">
+                              {row.referredUserId ? (
+                                <Link href={`/users/${row.referredUserId}`} className="hover:underline">
+                                  {row.displayName || "Uživatel AW"}
+                                </Link>
+                              ) : (
+                                "Uživatel AW"
+                              )}
+                              <div className="mt-1 text-xs font-normal text-slate-500">Registrace: {formatReferralDate(row.registeredAt)}</div>
+                            </td>
+                            <td className="border-b border-slate-100 px-4 py-3 text-sm">
+                              <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${referralStatusClass(row.status)}`}>
+                                {referralStatusLabel(row.status)}
+                              </span>
+                              {row.status === "pending" ? (
+                                <div className="mt-1 text-xs text-slate-500">Potřebuje 1 fotku a 10 tipů.</div>
+                              ) : null}
+                              {row.status === "active" && !counted ? (
+                                <div className="mt-1 text-xs text-slate-500">Aktivní, ale mimo top 10.</div>
+                              ) : null}
+                            </td>
+                            <td className="border-b border-slate-100 px-4 py-3 text-right text-sm font-bold text-slate-900">
+                              {formatPowerValue(row.referredPowerScore)}
+                            </td>
+                            <td className="border-b border-slate-100 px-4 py-3 text-right text-sm font-black text-emerald-700">
+                              +{formatPowerValue(counted ? row.bonusScore : 0)}
+                            </td>
+                            <td className="border-b border-slate-100 px-4 py-3 text-sm text-slate-700">
+                              {row.status === "active" ? `${formatReferralDate(row.bonusExpiresAt)} (${row.daysRemaining} dní)` : "—"}
+                            </td>
+                          </tr>
+                        );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }
@@ -2625,6 +3158,7 @@ function MyTipsStatsSection({
   countRows,
   loading,
   error,
+  onRefresh,
 }: {
   section: StatsSection;
   view: StatsHistoryView;
@@ -2635,10 +3169,11 @@ function MyTipsStatsSection({
   countRows: TipCountHistoryPoint[];
   loading: boolean;
   error: string | null;
+  onRefresh: () => void;
 }) {
   return (
     <div className="space-y-6">
-      <StatsPageHeader title={section.title} description={section.description} />
+      <StatsPageHeader title={section.title} description={section.description} rightSlot={<StatsRefreshButton onClick={onRefresh} disabled={loading} label="Aktualizovat moji přesnost" />} />
 
       <div className="space-y-3">
         <div className="flex justify-end">
@@ -2648,6 +3183,8 @@ function MyTipsStatsSection({
           title="Přesnost tipů"
           description="Denní historický snapshot průměrné přesnosti tipování."
           helpText="Graf ukazuje, jak se v čase vyvíjí tvoje průměrná přesnost tipů.\n\nVyšší procento znamená přesnější odhady věku. Hodnoty vznikají z denních snapshotů, takže graf ukazuje trend, ne každé jednotlivé tipnutí.\n\nSnapshoty se ukládají do databáze automaticky jako avg_accuracy_pct v tabulce aw_user_stats_history, takže nezávisí na tom, jestli otevřeš stránku statistik.\n\nDropdownem nad grafem změníš časový rozsah."
+          helpKey="accuracy-trend"
+          helpBreadcrumbs={statsHelpBreadcrumbs("Moje přesnost", "Přesnost tipů")}
           points={accuracyRows.map((row) => ({ label: formatDateCZ(row.snapshot_date), value: row.avg_accuracy_pct }))}
           loading={loading}
           error={error}
@@ -2665,6 +3202,8 @@ function MyTipsStatsSection({
           title="Počet provedených tipů"
           description={tipCountDescription(countView)}
           helpText="Graf ukazuje, kolik tipů věku jsi provedl v daném období.\n\nV pohledu 30 dní je každý sloupec jeden den. V ročním pohledu jsou data po měsících. V celoživotním pohledu jsou data po letech.\n\nPoužij ho pro rychlou kontrolu, kdy jsi byl v tipování nejaktivnější."
+          helpKey="tip-count"
+          helpBreadcrumbs={statsHelpBreadcrumbs("Moje přesnost", "Počet provedených tipů")}
           points={countRows.map((row) => ({ label: row.label, value: row.count }))}
           loading={loading}
           error={error}
@@ -2697,7 +3236,7 @@ function AwScoreGranularityToggle({
           key={option.value}
           type="button"
           onClick={() => onChange(option.value)}
-          className={`rounded-xl px-3 py-2 text-sm font-semibold ${value === option.value ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"}`}
+          className={`rounded-xl px-3 py-2 text-sm font-semibold ${value === option.value ? "bg-white text-slate-900" : "text-slate-600"}`}
         >
           {option.label}
         </button>
@@ -2714,6 +3253,7 @@ function AwScoreStatsSection({
   topPosts,
   loading,
   error,
+  onRefresh,
 }: {
   section: StatsSection;
   granularity: AwScoreTrendGranularity;
@@ -2722,10 +3262,11 @@ function AwScoreStatsSection({
   topPosts: TopAwInfluencePost[];
   loading: boolean;
   error: string | null;
+  onRefresh: () => void;
 }) {
   return (
     <div className="space-y-6">
-      <StatsPageHeader title={section.title} description={section.description} items={[...section.items]} />
+      <StatsPageHeader title={section.title} description={section.description} items={[...section.items]} rightSlot={<StatsRefreshButton onClick={onRefresh} disabled={loading} label="Aktualizovat AW skóre" />} />
 
       <div className="flex justify-end">
         <AwScoreGranularityToggle value={granularity} onChange={onGranularityChange} />
@@ -2735,6 +3276,8 @@ function AwScoreStatsSection({
         title="AW skóre trend"
         description="Trend vychází z denních snapshotů v aw_user_stats_history. Týdenní a měsíční pohled průměruje uložené body v daném období."
         helpText="Graf ukazuje trend AW skóre v denním, týdenním nebo měsíčním pohledu.\n\nDenní pohled ukazuje jednotlivé snapshoty. Týdenní a měsíční pohled průměruje dostupné hodnoty v daném období.\n\nPoužij ho pro sledování, jestli se tvůj AW výsledek dlouhodobě zlepšuje, zhoršuje nebo drží stabilně."
+        helpKey="aw-score-trend"
+        helpBreadcrumbs={statsHelpBreadcrumbs("AW skóre", "AW skóre trend")}
         points={trendRows.map((row) => ({ label: row.label, value: row.awScoreNormPct }))}
         loading={loading}
         error={error}
@@ -2758,12 +3301,14 @@ function GenerationAwPerceptionTable({
   error: string | null;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="rounded-2xl bg-white p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="text-sm font-semibold text-slate-900">Tvůj AW věk podle generací</div>
         <HelpIconButton
           helpText="Tabulka ukazuje, na kolik let tě v průměru tipují jednotlivé generace.\n\nPočítá se z tipů na tvoje fotky podle data narození tipujícího."
+          helpKey="aw-age-generations"
           modalTitle="Nápověda - AW věk podle generací"
+          breadcrumbs={statsHelpBreadcrumbs("AW věk", "AW věk podle generací")}
           className="shrink-0 p-1"
           iconClassName="h-4 w-4"
         />
@@ -2842,12 +3387,14 @@ function TopAwInfluencePostsTable({
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="rounded-2xl bg-white p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="text-sm font-semibold text-slate-900">Příspěvky s největším vlivem na AW</div>
         <HelpIconButton
           helpText="Zatím jde o orientační výpis podle dostupných image metrik: rozdíl průměrného AW věku a skutečného věku násobený počtem tipů.\n\nNení to náhrada finálního oficiálního AW výpočtu."
+          helpKey="top-aw-influence"
           modalTitle="Nápověda - příspěvky s největším vlivem na AW"
+          breadcrumbs={statsHelpBreadcrumbs("AW skóre", "Příspěvky s největším vlivem na AW")}
           className="shrink-0 p-1"
           iconClassName="h-4 w-4"
         />
@@ -2911,3 +3458,8 @@ function TopAwInfluencePostsTable({
     </div>
   );
 }
+
+
+
+
+

@@ -16,6 +16,10 @@ const nextConfig: NextConfig = {
     "http://192.168.68.107:3000",
     "http://192.168.68.109:3000",
   ],
+  experimental: {
+    webpackMemoryOptimizations: true,
+    preloadEntriesOnStart: false,
+  },
 };
 
 export default nextConfig;

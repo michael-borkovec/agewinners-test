@@ -11,9 +11,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
+import CloseButton from "@/components/CloseButton";
 import HelpIconButton from "@/components/HelpIconButton";
+import NotificationSettingsPanel from "@/components/NotificationSettingsPanel";
 import { PageSectionTitle } from "@/components/PageSectionTitle";
+import SoftSectionIntro from "@/components/SoftSectionIntro";
+import SoftEmptyState from "@/components/SoftEmptyState";
 import RefreshIconButton from "@/components/RefreshIconButton";
 import { awAlert, awPrompt } from "@/components/AwDialog";
 import { getMyAdminAlerts, type AdminAlertSummary } from "@/lib/api/adminAlerts";
@@ -134,6 +139,8 @@ export default function NotificationsPage() {
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [adminAlerts, setAdminAlerts] = useState<AdminAlertSummary[]>([]);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   async function loadAll() {
     setLoading(true);
@@ -166,6 +173,7 @@ export default function NotificationsPage() {
   }
 
   useEffect(() => {
+    setMounted(true);
     void loadAll();
   }, []);
 
@@ -202,48 +210,43 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl p-6">
-      <div className="rounded-2xl bg-white p-5 shadow">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <PageSectionTitle
-              title="Upozornění"
-              iconPath="/ui/Menu-upozorneni.ico"
-              sizeClassName="text-[1.95rem]"
-            />
-            <p className="mt-1 text-sm text-slate-600">Přehled žádostí, reakcí v síti i komentářů k tvým fotkám.</p>
-          </div>
-
-          <div className="flex items-center gap-2">
+    <div className="mx-auto max-w-3xl px-6 pb-6">
+      <div className="space-y-4">
+        <SoftSectionIntro
+          title="Upozornění"
+          iconPath="/ui/Menu-upozorneni.ico"
+          sizeClassName="text-[1.95rem]"
+          actions={
+            <>
             <HelpIconButton
-              helpText="Upozornění shrnují síťové události i komentáře k tvým fotkám. Nastavení typů upozornění najdeš v samostatné sekci, ale tady stále rychle vyřídíš příchozí žádosti a otevřeš profil autora události."
-              modalTitle="Nápověda – Upozornění"
+              helpText="Upozornění shrnují žádosti o spojení, změny v síti i komentáře k tvým fotkám.\n\nIkona nastavení otevře výběr typů upozornění, které chceš dostávat. Refresh načte aktuální přehled.\n\nPříchozí žádosti můžeš vyřídit přímo odsud; úplný přehled najdeš také v sekci Moje síť - nové žádosti."
+              helpKey="notifications"
+              modalTitle="Nápověda - Upozornění"
             />
-            <Link
-              href="/network?tab=requests"
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              className="rounded-md p-2 hover:bg-slate-100"
+              aria-label="Nastavení upozornění"
+              title="Nastavení upozornění"
             >
-              Zobrazit všechny žádosti
-            </Link>
-            <Link
-              href="/notifications/settings"
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              Nastavení upozornění
-            </Link>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/icons/action/settings.png" alt="" className="h-5 w-5 object-contain" />
+            </button>
             <RefreshIconButton
               onClick={() => void loadAll()}
               disabled={loading || busyKey !== null}
               activeIconPath="/ui/refresh-rot.gif"
               activeDurationMs={5000}
             />
-          </div>
-        </div>
+            </>
+          }
+        />
 
         {loading ? (
           <div className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">Načítám upozornění...</div>
         ) : notifications.length === 0 && adminAlerts.length === 0 ? (
-          <div className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">Zatím tu nic není.</div>
+          <SoftEmptyState title="Zatím tu nic není" text="Jakmile se objeví nová žádost, změna v síti nebo komentář k tvým fotkám, uvidíš ji právě tady." />
         ) : (
           <div className="mt-4 space-y-3">
             {adminAlerts.map((summary) => (
@@ -283,8 +286,8 @@ export default function NotificationsPage() {
             {notifications.map((notification) => (
               <div
                 key={notification.id}
-                className={`rounded-2xl border p-4 ${
-                  notification.is_read ? "border-slate-200 bg-white" : "border-emerald-200 bg-emerald-50/40"
+                className={`rounded-2xl p-4 ${
+                  notification.is_read ? "bg-white" : "bg-emerald-50/40"
                 }`}
               >
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -307,7 +310,7 @@ export default function NotificationsPage() {
                       <div className="mt-1 text-xs text-slate-500">{formatDateTime(notification.created_at)}</div>
 
                       {notification.type === "connection_request_received" && notification.request_message?.trim() ? (
-                        <div className="mt-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-slate-700">
+                        <div className="mt-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-slate-700">
                           {notification.request_message.trim()}
                         </div>
                       ) : null}
@@ -343,7 +346,7 @@ export default function NotificationsPage() {
                         type="button"
                         onClick={() => void handleAccept(notification)}
                         disabled={busyKey === `decline-${notification.id}` || busyKey === `accept-${notification.id}`}
-                        className="rounded-xl bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                        className="rounded-xl bg-[#32CD32] px-3 py-2 text-sm font-semibold text-white hover:bg-[#28b828] disabled:opacity-60"
                       >
                         Přijmout
                       </button>
@@ -356,13 +359,44 @@ export default function NotificationsPage() {
         )}
 
         <p className="mt-6 text-xs text-slate-500">
-          Jaké typy upozornění chceš dostávat, upravíš v{" "}
-          <Link href="/notifications/settings" className="underline">
-            Nastavení upozornění
+          Přehled všech žádostí o spojení najdeš v sekci{" "}
+          <Link href="/network?tab=requests&section=incoming" className="underline">
+            Moje síť - nové žádosti
           </Link>
           .
         </p>
       </div>
+
+      {mounted && settingsOpen
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[80] flex items-end justify-center overflow-y-auto bg-black/40 p-4 sm:items-center"
+              onClick={() => setSettingsOpen(false)}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="notification-settings-title"
+            >
+              <div
+                className="flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-y-auto rounded-2xl bg-white p-5 shadow-xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <h2 id="notification-settings-title" className="text-base font-semibold text-slate-900">
+                    Nastavení upozornění
+                  </h2>
+                  <CloseButton onClick={() => setSettingsOpen(false)} label="Zavřít nastavení upozornění" />
+                </div>
+
+                <div className="mt-4">
+                  <NotificationSettingsPanel onSaved={() => setSettingsOpen(false)} />
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }
+
+

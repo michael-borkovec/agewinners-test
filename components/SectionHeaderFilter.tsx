@@ -1,13 +1,13 @@
-/**
+﻿/**
  * File: components/SectionHeaderFilter.tsx
  *
  * Purpose:
  * - Sticky header with section title, filter modal trigger, and refresh icon.
+ * - Preserve the shared header action order: help -> settings -> filter -> refresh.
  * - Optional persistence of multiple filter groups via localStorage (storageKey).
- * - 3-column filter modal:
+ * - 2-column filter modal:
  *   - left = main filters
- *   - middle = extra filter groups
- *   - right = action buttons
+ *   - right = extra filter groups and action buttons
  *
  * Behavior:
  * - committed value = [] means "show all" for each filter group
@@ -77,6 +77,19 @@ export function SectionHeaderFilter(props: {
   onRefresh?: () => void | Promise<void>;
   beforeFilterAction?: HeaderAction;
   helpText?: string;
+  helpKey?: string;
+  helpModalTitle?: string;
+  helpBlocks?: Array<{
+    iconPath: string;
+    secondaryIconPath?: string;
+    alt: string;
+    title?: string;
+    text: string;
+  }>;
+  helpHref?: string;
+  helpModalOverlayClassName?: string;
+  helpLinkLabel?: string;
+  helpLinkClassName?: string;
   refreshIconPath?: string;
   refreshActiveIconPath?: string;
   refreshActiveDurationMs?: number;
@@ -108,7 +121,14 @@ export function SectionHeaderFilter(props: {
     onRefresh,
     beforeFilterAction,
     helpText,
-    refreshIconPath = "/refresh.ico",
+    helpKey,
+    helpModalTitle,
+    helpBlocks,
+    helpHref,
+    helpModalOverlayClassName,
+    helpLinkLabel,
+    helpLinkClassName,
+    refreshIconPath = "/icons/action/refresh.png",
     refreshActiveIconPath,
     refreshActiveDurationMs = 3000,
     refreshAnimationStorageKey,
@@ -207,8 +227,6 @@ export function SectionHeaderFilter(props: {
   const defaultSelectKey = selectOptions[0]?.key ?? "";
   const isSelectActive = selectOptions.length > 0 && !!selectValue && selectValue !== defaultSelectKey;
   const hasActiveState = isActive || isSelectActive;
-  const currentRefreshIconPath = refreshAnimating && refreshActiveIconPath ? refreshActiveIconPath : refreshIconPath;
-
   function handleRefreshClick() {
     if (refreshActiveIconPath && onRefresh) {
       setRefreshAnimating(true);
@@ -260,7 +278,20 @@ export function SectionHeaderFilter(props: {
     <>
       <div className="fixed left-[132px] top-[68px] z-[60] sm:hidden">
         <div className="flex items-center gap-2 rounded-sm bg-white/80 px-1 py-0.5">
-          {helpText ? <HelpIconButton helpText={helpText} iconClassName="h-3.5 w-3.5" className="p-1" modalTitle={`Nápověda – ${title}`} /> : null}
+          {helpText ? (
+            <HelpIconButton
+              helpText={helpText}
+              helpKey={helpKey}
+              helpBlocks={helpBlocks}
+              helpHref={helpHref}
+              helpLinkLabel={helpLinkLabel}
+              helpLinkClassName={helpLinkClassName}
+              modalOverlayClassName={helpModalOverlayClassName}
+              iconClassName="h-3.5 w-3.5"
+              className="p-1"
+              modalTitle={helpModalTitle ?? `Nápověda – ${title}`}
+            />
+          ) : null}
 
           {beforeFilterAction ? (
             <button
@@ -283,7 +314,7 @@ export function SectionHeaderFilter(props: {
             title="Filtrovat"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={hasActiveState ? "/funnel-full.ico" : "/funnel-empty.ico"} alt="" className="h-3.5 w-3.5" />
+            <img src={hasActiveState ? "/icons/action/filter-full.png" : "/icons/action/filter-empty.png"} alt="" className="h-3.5 w-3.5" />
           </button>
 
           <button
@@ -294,13 +325,13 @@ export function SectionHeaderFilter(props: {
             title="Refresh"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={currentRefreshIconPath} alt="" className="h-3.5 w-3.5" />
+              <img src={refreshIconPath} alt="" className={`h-3.5 w-3.5 ${refreshAnimating ? "animate-spin" : ""}`} />
           </button>
         </div>
       </div>
 
-      <div className="hidden sticky z-40 bg-white/95 backdrop-blur sm:block" style={{ top: "var(--aw-topbar-h, 0px)" }}>
-        <div className="flex w-full items-center justify-between gap-3 p-4">
+      <div className="hidden sticky z-40 sm:block" style={{ top: "var(--aw-topbar-h, 0px)" }}>
+        <div className="mx-4 mb-4 flex items-center justify-between gap-3 rounded-2xl bg-gradient-to-br from-[#e8fbe8] via-white to-white p-4 shadow-[0_12px_30px_rgba(50,205,50,0.10)]">
           <div className="min-w-0 hidden sm:block">
             <div className="flex items-center gap-3">
               {iconPath ? (
@@ -316,7 +347,18 @@ export function SectionHeaderFilter(props: {
           <div className="flex min-w-0 items-center justify-end gap-2 sm:flex-1">
             <div className="min-w-0 flex-1 truncate text-right text-sm text-slate-500 hidden sm:block">{summary}</div>
 
-            {helpText ? <HelpIconButton helpText={helpText} modalTitle={`Nápověda – ${title}`} /> : null}
+            {helpText ? (
+              <HelpIconButton
+                helpText={helpText}
+                helpKey={helpKey}
+                helpBlocks={helpBlocks}
+                helpHref={helpHref}
+                helpLinkLabel={helpLinkLabel}
+                helpLinkClassName={helpLinkClassName}
+                modalOverlayClassName={helpModalOverlayClassName}
+                modalTitle={helpModalTitle ?? `Nápověda – ${title}`}
+              />
+            ) : null}
 
             {beforeFilterAction ? (
               <button
@@ -339,7 +381,7 @@ export function SectionHeaderFilter(props: {
               title="Filtrovat"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={hasActiveState ? "/funnel-full.ico" : "/funnel-empty.ico"} alt="" className="h-5 w-5" />
+              <img src={hasActiveState ? "/icons/action/filter-full.png" : "/icons/action/filter-empty.png"} alt="" className="h-5 w-5" />
             </button>
 
             <button
@@ -350,7 +392,7 @@ export function SectionHeaderFilter(props: {
               title="Refresh"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={currentRefreshIconPath} alt="" className="h-5 w-5" />
+              <img src={refreshIconPath} alt="" className={`h-5 w-5 ${refreshAnimating ? "animate-spin" : ""}`} />
             </button>
           </div>
         </div>
@@ -531,20 +573,22 @@ function FilterModal(props: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 md:items-center">
-      <div className="w-full max-w-5xl rounded-2xl bg-white p-4 shadow-lg md:p-5">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-base font-semibold">{title}</h2>
-          <CloseButton type="button" onClick={onClose} />
+      <div className="w-full max-w-4xl rounded-2xl bg-white p-4 shadow-xl md:p-5">
+        <div className="rounded-2xl bg-gradient-to-br from-[#e8fbe8] via-white to-white p-4 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-base font-semibold text-slate-950">{title}</h2>
+            <CloseButton type="button" onClick={onClose} />
+          </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-[1fr_1fr_220px]">
-          <div>
+        <div className="mt-4 grid grid-cols-1 items-start gap-4 md:grid-cols-[2fr_1fr]">
+          <div className="rounded-2xl bg-white p-4 shadow-sm">
             <div className="mb-3 text-sm font-semibold text-slate-900">{mainTitle ?? "Kategorie"}</div>
 
-            <div className="space-y-2">
+            <div className="grid gap-x-4 gap-y-2 sm:grid-cols-2">
               {options.map((o) => (
-                <label key={o.key} className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
-                  <input type="checkbox" checked={draftMain.includes(o.key)} onChange={() => toggleMain(o.key)} />
+                <label key={o.key} className="flex cursor-pointer items-center gap-2 rounded-xl px-2 py-1.5 text-sm text-slate-700 hover:bg-emerald-50/70">
+                  <input type="checkbox" checked={draftMain.includes(o.key)} onChange={() => toggleMain(o.key)} className="accent-[#32CD32]" />
                   <span>{o.label}</span>
                 </label>
               ))}
@@ -563,15 +607,15 @@ function FilterModal(props: {
             </div>
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-4">
             {extraOptions.length > 0 ? (
-              <div>
+              <div className="rounded-2xl bg-white p-4 shadow-sm">
                 <div className="mb-3 text-sm font-semibold text-slate-900">{extraTitle ?? "Další filtr"}</div>
 
                 <div className="space-y-2">
                   {extraOptions.map((o) => (
-                    <label key={o.key} className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
-                      <input type="checkbox" checked={draftExtra.includes(o.key)} onChange={() => toggleExtra(o.key)} />
+                    <label key={o.key} className="flex cursor-pointer items-center gap-2 rounded-xl px-2 py-1.5 text-sm text-slate-700 hover:bg-emerald-50/70">
+                      <input type="checkbox" checked={draftExtra.includes(o.key)} onChange={() => toggleExtra(o.key)} className="accent-[#32CD32]" />
                       <span>{o.label}</span>
                     </label>
                   ))}
@@ -580,13 +624,13 @@ function FilterModal(props: {
             ) : null}
 
             {extra2Options.length > 0 ? (
-              <div>
+              <div className="rounded-2xl bg-white p-4 shadow-sm">
                 <div className="mb-3 text-sm font-semibold text-slate-900">{extra2Title ?? "Další filtr"}</div>
 
                 <div className="space-y-2">
                   {extra2Options.map((o) => (
-                    <label key={o.key} className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
-                      <input type="checkbox" checked={draftExtra2.includes(o.key)} onChange={() => toggleExtra2(o.key)} />
+                    <label key={o.key} className="flex cursor-pointer items-center gap-2 rounded-xl px-2 py-1.5 text-sm text-slate-700 hover:bg-emerald-50/70">
+                      <input type="checkbox" checked={draftExtra2.includes(o.key)} onChange={() => toggleExtra2(o.key)} className="accent-[#32CD32]" />
                       <span>{o.label}</span>
                     </label>
                   ))}
@@ -595,7 +639,7 @@ function FilterModal(props: {
             ) : null}
 
             {selectOptions.length > 0 ? (
-              <div>
+              <div className="rounded-2xl bg-white p-4 shadow-sm">
                 <div className="mb-3 text-sm font-semibold text-slate-900">{selectTitle ?? "Výběr"}</div>
                 <select
                   value={draftSelect}
@@ -610,29 +654,26 @@ function FilterModal(props: {
                 </select>
               </div>
             ) : null}
-          </div>
 
-          <div className="flex flex-col gap-3 md:justify-start">
-            <AwButton
-              type="button"
-              onClick={handleDone}
-              variant="primary"
-              className={doneButtonClassName}
-            >
-              Hotovo
-            </AwButton>
+            <div className="self-start">
+              <div className="flex flex-col gap-3">
+              <AwButton type="button" onClick={handleDone} variant="primary" className={doneButtonClassName}>
+                Hotovo
+              </AwButton>
 
-            <AwButton
-              type="button"
-              onClick={onClose}
-              variant="tertiary"
-            >
-              Zavřít
-            </AwButton>
+              <AwButton type="button" onClick={onClose} variant="tertiary">
+                Zavřít
+              </AwButton>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
 }
+
+
+
+
 

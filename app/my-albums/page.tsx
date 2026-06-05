@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -20,6 +20,7 @@ import {
   type AwChallengePrivateGoalVisibility,
 } from "@/lib/api/challenges";
 import {
+  createAlbum,
   deleteMyAlbum,
   getAlbumsWithPosts,
   removePostFromAlbum,
@@ -147,11 +148,11 @@ function compareIsoDesc(a: string | null | undefined, b: string | null | undefin
 
 function ageDeltaText(delta: number | null) {
   if (delta == null || !Number.isFinite(delta)) return "Bez rozdílu";
-  if (delta <= -SIGNIFICANT_DELTA_YEARS) return `Pusobíš výrazne mladší o ${Math.abs(delta).toFixed(1)} let`;
-  if (delta >= SIGNIFICANT_DELTA_YEARS) return `Pusobíš výrazne starší o ${delta.toFixed(1)} let`;
-  if (delta < 0) return `Pusobíš mladší o ${Math.abs(delta).toFixed(1)} let`;
-  if (delta > 0) return `Pusobíš starší o ${delta.toFixed(1)} let`;
-  return "Pusobíš presne na svuj vek";
+  if (delta <= -SIGNIFICANT_DELTA_YEARS) return `Působíš výrazně mladší o ${Math.abs(delta).toFixed(1)} let`;
+  if (delta >= SIGNIFICANT_DELTA_YEARS) return `Působíš výrazně starší o ${delta.toFixed(1)} let`;
+  if (delta < 0) return `Působíš mladší o ${Math.abs(delta).toFixed(1)} let`;
+  if (delta > 0) return `Působíš starší o ${delta.toFixed(1)} let`;
+  return "Působíš přesně na svůj věk";
 }
 
 function formatAwScore(value: number | null | undefined) {
@@ -176,7 +177,7 @@ function normalizeChallengeSlug(input: string) {
 function challengeVisibilityLabel(value: ChallengeVisibility) {
   if (value === "private") return "Soukromá";
   if (value === "contacts") return "Pro kontakty";
-  return "Verejná";
+  return "Veřejná";
 }
 
 function todayIsoDate() {
@@ -273,9 +274,9 @@ function AlbumEditModal({
       >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h3 className="text-lg font-bold text-slate-900">Editovat zmenu</h3>
+            <h3 className="text-lg font-bold text-slate-900">Editovat změnu</h3>
             <p className="mt-1 text-sm text-slate-600">
-              Uprav název, popis a prípadne odeber vybrané posty ze zmeny.
+              Uprav název, popis a případně odeber vybrané posty ze změny.
             </p>
           </div>
 
@@ -284,33 +285,33 @@ function AlbumEditModal({
 
         <div className="mt-4 grid gap-4">
           <label className="grid gap-1">
-            <span className="text-sm font-semibold text-slate-800">Název zmeny</span>
+            <span className="text-sm font-semibold text-slate-800">Název změny</span>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               disabled={busy}
-              className="rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-              placeholder="Napr. Moje promena"
+              className="rounded-xl px-3 py-2 text-sm outline-none focus:border-emerald-500"
+              placeholder="Např. Moje promena"
             />
           </label>
 
           <label className="grid gap-1">
-            <span className="text-sm font-semibold text-slate-800">Popis zmeny</span>
+            <span className="text-sm font-semibold text-slate-800">Popis změny</span>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={busy}
               rows={4}
-              className="rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-              placeholder="Krátký popis zmeny..."
+              className="rounded-xl px-3 py-2 text-sm outline-none focus:border-emerald-500"
+              placeholder="Krátký popis změny..."
             />
           </label>
 
           <div>
-            <div className="text-sm font-semibold text-slate-800">Posty ve zmene</div>
-            <div className="mt-2 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <div className="text-sm font-semibold text-slate-800">Posty ve změně</div>
+            <div className="mt-2 space-y-2 rounded-xl bg-slate-50 p-3">
               {rels.length === 0 ? (
-                <div className="text-sm text-slate-500">Zmena zatím neobsahuje žádné posty.</div>
+                <div className="text-sm text-slate-500">Změna zatím neobsahuje žádné posty.</div>
               ) : (
                 rels.map((rel) => {
                   const post = rel.posts ?? {};
@@ -337,7 +338,7 @@ function AlbumEditModal({
                           <div className="mt-1 line-clamp-2 text-slate-600">{post.text}</div>
                         ) : null}
                         <div className="mt-1 text-xs text-slate-500">
-                          Odebrat tento post ze zmeny
+                          Odebrat tento post ze změny
                         </div>
                       </div>
                     </label>
@@ -363,7 +364,7 @@ function AlbumEditModal({
             }
             disabled={busy}
           >
-            {busy ? "Ukládám…" : "Uložit zmeny"}
+            {busy ? "Ukládám…" : "Uložit změny"}
           </AwButton>
         </div>
       </div>
@@ -393,6 +394,8 @@ export default function MyAlbumsPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [editingAlbum, setEditingAlbum] = useState<AlbumRow | null>(null);
   const [editBusy, setEditBusy] = useState(false);
+  const [createChangeOpen, setCreateChangeOpen] = useState(false);
+  const [createChangeBusy, setCreateChangeBusy] = useState(false);
   const [activeView, setActiveView] = useState<ChallengeView>("challenges");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [category, setCategory] = useState<CategoryFilter>("all");
@@ -436,7 +439,7 @@ export default function MyAlbumsPage() {
       const rows = await getAlbumsWithPosts(userId);
       setAlbums((rows ?? []) as AlbumRow[]);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Nepodarilo se nacíst zmeny.");
+      setError(e instanceof Error ? e.message : "Nepodařilo se načíst změny.");
       setAlbums([]);
     } finally {
       setLoading(false);
@@ -527,11 +530,11 @@ export default function MyAlbumsPage() {
 
   async function handleDeleteAlbum(albumId: number) {
     const choice = await awPrompt({
-      title: "Smazat zmenu",
+      title: "Smazat změnu",
       message:
         "Vyber akci:\n\n" +
-        "1 = Smazat pouze zmenu (posty zustanou)\n" +
-        "2 = Smazat zmenu vcetne všech postu",
+        "1 = Smazat pouze změnu (posty zůstanou)\n" +
+        "2 = Smazat změnu vcetne všech postů",
       placeholder: "Zadej 1 nebo 2",
       confirmLabel: "Pokracovat",
     });
@@ -545,9 +548,9 @@ export default function MyAlbumsPage() {
     try {
       await deleteMyAlbum(albumId, { deletePosts });
       await loadAlbums();
-      await awAlert(deletePosts ? "Zmena i posty smazány." : "Zmena smazána.");
+      await awAlert(deletePosts ? "Změna i posty smazány." : "Změna smazána.");
     } catch (e: unknown) {
-      await awAlert(e instanceof Error ? e.message : "Zmenu se nepodarilo smazat.");
+      await awAlert(e instanceof Error ? e.message : "Změnu se nepodařilo smazat.");
     } finally {
       setBusyAlbumId(null);
     }
@@ -583,9 +586,9 @@ export default function MyAlbumsPage() {
       setEditOpen(false);
       setEditingAlbum(null);
       await loadAlbums();
-      await awAlert("Zmena upravena.");
+      await awAlert("Změna upravena.");
     } catch (e: unknown) {
-      await awAlert(e instanceof Error ? e.message : "Zmenu se nepodarilo upravit.");
+      await awAlert(e instanceof Error ? e.message : "Změnu se nepodařilo upravit.");
     } finally {
       setEditBusy(false);
     }
@@ -710,6 +713,31 @@ export default function MyAlbumsPage() {
     setSelectedYear(null);
   }
 
+  async function handleCreateChange(payload: {
+    title: string;
+    description: string;
+    visibility: NonNullable<AlbumRow["visibility"]>;
+  }) {
+    if (!userId) return;
+
+    setCreateChangeBusy(true);
+    try {
+      await createAlbum({
+        ownerUserId: userId,
+        title: payload.title,
+        description: payload.description,
+        visibility: payload.visibility,
+      });
+      setCreateChangeOpen(false);
+      await loadAlbums();
+      await awAlert("Změna vytvořena.");
+    } catch (e: unknown) {
+      await awAlert(e instanceof Error ? e.message : "Změnu se nepodařilo vytvořit.");
+    } finally {
+      setCreateChangeBusy(false);
+    }
+  }
+
   async function handleCreateChallenge() {
     const targetDelta = Number(challengeTargetScore);
     if (!Number.isFinite(targetDelta)) {
@@ -724,7 +752,7 @@ export default function MyAlbumsPage() {
     }
 
     if (challengeTargetDate < today) {
-      setChallengeError("Termín výzvy nemuže být v minulosti. Vyber dnešní nebo budoucí datum.");
+      setChallengeError("Termín výzvy nemůže být v minulosti. Vyber dnešní nebo budoucí datum.");
       return;
     }
 
@@ -759,9 +787,9 @@ export default function MyAlbumsPage() {
       setChallengePrivateGoalVisibility("private");
       setChallengePublicMessage("");
       setChallengeCreateOpen(false);
-      await awAlert("Výzva byla vytvorena.");
+      await awAlert("Výzva byla vytvořena.");
     } catch (e: unknown) {
-      setChallengeError(e instanceof Error ? e.message : "Výzvu se nepodarilo vytvorit.");
+      setChallengeError(e instanceof Error ? e.message : "Výzvu se nepodařilo vytvořit.");
     } finally {
       setChallengeBusy(false);
     }
@@ -786,11 +814,11 @@ export default function MyAlbumsPage() {
       return;
     }
     if (editChallengeTargetDate < today) {
-      setChallengeError("Termín výzvy nemuže být v minulosti. Vyber dnešní nebo budoucí datum.");
+      setChallengeError("Termín výzvy nemůže být v minulosti. Vyber dnešní nebo budoucí datum.");
       return;
     }
     if (editChallengeTargetDate < editingChallenge.target_date_current) {
-      setChallengeError("Termín aktivní výzvy mužeš jen prodloužit, ne zkrátit.");
+      setChallengeError("Termín aktivní výzvy můžeš jen prodloužit, ne zkrátit.");
       return;
     }
 
@@ -822,9 +850,9 @@ export default function MyAlbumsPage() {
     const suggestedTag = `${CHALLENGE_TAG_PREFIX}-${normalizeChallengeSlug(challenge.title)}`;
     const tag = (await awPrompt({
       title: "Tag výzvy",
-      message: "Zadej tag výzvy. Musí být jedinecný pro tvuj úcet.",
+      message: "Zadej tag výzvy. Musí být jedinečný pro tvůj účet.",
       defaultValue: suggestedTag,
-      confirmLabel: "Vytvorit tag",
+      confirmLabel: "Vytvořit tag",
     }))?.trim();
     if (!tag) return;
 
@@ -838,9 +866,9 @@ export default function MyAlbumsPage() {
         switchToChallengeTagScope: challenge.photo_scope === "auto_period",
       });
       await loadChallenges();
-      await awAlert(`Tag výzvy byl vytvoren: ${tag}`);
+      await awAlert(`Tag výzvy byl vytvořen: ${tag}`);
     } catch (e: unknown) {
-      setChallengeError(e instanceof Error ? e.message : "Tag výzvy se nepodarilo vytvorit.");
+      setChallengeError(e instanceof Error ? e.message : "Tag výzvy se nepodařilo vytvořit.");
     } finally {
       setTagBusyChallengeId(null);
     }
@@ -849,8 +877,8 @@ export default function MyAlbumsPage() {
   if (loading) {
     return (
       <div className="space-y-4">
-        <div className="rounded-2xl bg-white p-5 shadow">
-          <div className="text-lg font-bold text-slate-900">Výzvy a zmeny</div>
+        <div className="rounded-2xl bg-gradient-to-br from-[#e8fbe8] via-white to-white p-5 shadow-[0_12px_30px_rgba(50,205,50,0.10)]">
+          <div className="text-lg font-bold text-slate-900">Výzvy a změny</div>
           <div className="mt-1 text-sm text-slate-500">Nacítám…</div>
         </div>
       </div>
@@ -872,6 +900,15 @@ export default function MyAlbumsPage() {
           setEditingAlbum(null);
         }}
         onSave={handleSaveAlbumEdit}
+      />
+      <ChangeCreateModal
+        open={createChangeOpen}
+        busy={createChangeBusy}
+        onClose={() => {
+          if (createChangeBusy) return;
+          setCreateChangeOpen(false);
+        }}
+        onCreate={handleCreateChange}
       />
       <ChallengeEditModal
         challenge={editingChallenge}
@@ -898,11 +935,11 @@ export default function MyAlbumsPage() {
       />
 
       <div className="space-y-5">
-        <div className="rounded-2xl bg-white p-5 shadow">
+        <div className="rounded-2xl bg-white p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <PageSectionTitle
-                title="Výzvy a zmeny"
+                title="Výzvy a změny"
                 iconPath="/ui/Menu-Moje-alba.ico"
                 sizeClassName="text-[1.46rem]"
               />
@@ -911,8 +948,9 @@ export default function MyAlbumsPage() {
             <div className="flex items-start gap-2">
               <div className="flex items-center gap-1">
                 <HelpIconButton
-                  helpText="Výzvy sledují budoucí posun AW skóre. Zmeny jsou tvoje dosavadní kolekce postu a fotek.\n\nVýzvy jsou docasné akce s cílem posunout AW skóre podle existujících pravidel AgeWinners.\n\nNa zacátku výzvy se uloží aktuální AW skóre. Na konci se porovná s konecnou hodnotou. Výpocet AW skóre se tím nijak nemení.\n\nZmeny jsou prejmenovaná alba: zpetné kolekce postu a fotek, které mohou pozdeji popisovat promenu uživatele."
-                  modalTitle="Nápoveda - výzvy a zmeny"
+                  helpText="Výzvy sledují budoucí posun AW skóre. Změny jsou tvoje dosavadní kolekce postů a fotek.\n\nVýzvy jsou dočasné akce s cílem posunout AW skóre podle existujících pravidel AgeWinners.\n\nNa začátku výzvy se uloží aktuální AW skóre. Na konci se porovná s konečnou hodnotou. Výpočet AW skóre se tím nijak nemění.\n\nZměny jsou přejmenovaná alba: zpětné kolekce postů a fotek, které mohou popisovat proměnu uživatele v čase."
+                  helpKey="changes-overview"
+                  modalTitle="Nápověda - výzvy a změny"
                 />
                 {activeView === "photos" ? (
                   <button
@@ -923,7 +961,7 @@ export default function MyAlbumsPage() {
                     title="Filtry fotografií"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={hasActivePhotoFilters ? "/funnel-full.ico" : "/funnel-empty.ico"} alt="" className="h-5 w-5" />
+                    <img src={hasActivePhotoFilters ? "/icons/action/filter-full.png" : "/icons/action/filter-empty.png"} alt="" className="h-5 w-5" />
                   </button>
                 ) : null}
                 <RefreshIconButton
@@ -940,25 +978,25 @@ export default function MyAlbumsPage() {
               Výzvy
             </ViewTabButton>
             <ViewTabButton active={activeView === "changes"} onClick={() => setActiveView("changes")}>
-              Zmeny
+              Změny
             </ViewTabButton>
             <ViewTabButton active={activeView === "photos"} onClick={() => setActiveView("photos")}>
-              Fotografie zmen
+              Fotografie změn
             </ViewTabButton>
           </div>
 
           {activeView === "photos" && filtersOpen ? (
-            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="mt-4 rounded-2xl bg-slate-50 p-4">
               {selectedYear ? (
-                <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
-                  Prednastaveno ze statistik: fotografie z roku <span className="font-semibold">{selectedYear}</span>.
+                <div className="mb-4 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+                  Přednastaveno ze statistik: fotografie z roku <span className="font-semibold">{selectedYear}</span>.
                 </div>
               ) : null}
 
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <label className="grid gap-1">
                   <span className="text-xs font-semibold text-slate-700">Kategorie</span>
-                  <select value={category} onChange={(e) => setCategory(e.target.value as CategoryFilter)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900">
+                  <select value={category} onChange={(e) => setCategory(e.target.value as CategoryFilter)} className="rounded-xl bg-white px-3 py-2 text-sm text-slate-900">
                     {CATEGORY_OPTIONS.map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
@@ -969,41 +1007,41 @@ export default function MyAlbumsPage() {
 
                 <label className="grid gap-1">
                   <span className="text-xs font-semibold text-slate-700">Datum porízení od</span>
-                  <input type="date" value={takenFrom} onChange={(e) => setTakenFrom(e.target.value)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900" />
+                  <input type="date" value={takenFrom} onChange={(e) => setTakenFrom(e.target.value)} className="rounded-xl bg-white px-3 py-2 text-sm text-slate-900" />
                 </label>
 
                 <label className="grid gap-1">
                   <span className="text-xs font-semibold text-slate-700">Datum porízení do</span>
-                  <input type="date" value={takenTo} onChange={(e) => setTakenTo(e.target.value)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900" />
+                  <input type="date" value={takenTo} onChange={(e) => setTakenTo(e.target.value)} className="rounded-xl bg-white px-3 py-2 text-sm text-slate-900" />
                 </label>
 
                 <label className="grid gap-1">
                   <span className="text-xs font-semibold text-slate-700">Zvýraznit</span>
-                  <select value={highlightMode} onChange={(e) => setHighlightMode(e.target.value as HighlightMode)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900">
+                  <select value={highlightMode} onChange={(e) => setHighlightMode(e.target.value as HighlightMode)} className="rounded-xl bg-white px-3 py-2 text-sm text-slate-900">
                     <option value="all">Všechny fotky</option>
                     <option value="younger">Výrazne mladší</option>
                     <option value="older">Výrazne starší</option>
-                    <option value="most_rated">Nejcasteji hodnocené</option>
+                    <option value="most_rated">Nejčastěji hodnocené</option>
                   </select>
                 </label>
 
                 <label className="grid gap-1">
-                  <span className="text-xs font-semibold text-slate-700">Uverejneno od</span>
-                  <input type="date" value={publishedFrom} onChange={(e) => setPublishedFrom(e.target.value)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900" />
+                  <span className="text-xs font-semibold text-slate-700">Uveřejněno od</span>
+                  <input type="date" value={publishedFrom} onChange={(e) => setPublishedFrom(e.target.value)} className="rounded-xl bg-white px-3 py-2 text-sm text-slate-900" />
                 </label>
 
                 <label className="grid gap-1">
-                  <span className="text-xs font-semibold text-slate-700">Uverejneno do</span>
-                  <input type="date" value={publishedTo} onChange={(e) => setPublishedTo(e.target.value)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900" />
+                  <span className="text-xs font-semibold text-slate-700">Uveřejněno do</span>
+                  <input type="date" value={publishedTo} onChange={(e) => setPublishedTo(e.target.value)} className="rounded-xl bg-white px-3 py-2 text-sm text-slate-900" />
                 </label>
 
-                <label className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
+                <label className="inline-flex items-center gap-2 rounded-xl bg-white px-3 py-2">
                   <input type="checkbox" checked={includeExperimental} onChange={(e) => setIncludeExperimental(e.target.checked)} />
                   <span className="text-sm font-semibold text-slate-800">Zahrnout experimentální</span>
                 </label>
 
                 <div className="flex items-end">
-                  <button type="button" onClick={resetPhotoFilters} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                  <button type="button" onClick={resetPhotoFilters} className="w-full rounded-xl bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
                     Vycistit filtry
                   </button>
                 </div>
@@ -1013,7 +1051,7 @@ export default function MyAlbumsPage() {
         </div>
 
         {error ? (
-          <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+          <div className="rounded-2xl bg-rose-50 p-4 text-sm text-rose-800">
             {error}
           </div>
         ) : null}
@@ -1062,11 +1100,25 @@ export default function MyAlbumsPage() {
           />
         ) : activeView === "changes" ? (
           <>
+            <div className="rounded-2xl bg-white p-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="text-base font-bold text-slate-900">Změny</div>
+                  <div className="mt-1 text-sm text-slate-600">
+                    Kolekce postů a fotek, které zachycují tvoji proměnu v čase.
+                  </div>
+                </div>
+                <AwButton variant="primary" onClick={() => setCreateChangeOpen(true)}>
+                  Nová změna
+                </AwButton>
+              </div>
+            </div>
+
             {albums.length === 0 ? (
-              <div className="rounded-2xl bg-white p-5 shadow">
-                <div className="text-base font-semibold text-slate-900">Zatím nemáš žádné zmeny</div>
+              <div className="rounded-2xl bg-white p-5">
+                <div className="text-base font-semibold text-slate-900">Zatím nemáš žádné změny</div>
                 <div className="mt-2 text-sm text-slate-600">
-                  Zmenu zatím vytvoríš pres existující akci pro kolekci postu. V další verzi doplníme samostatný jazyk a tvorbu zmen.
+                  Vytvoř první změnu a postůpně do ní přidávej posty, které spolu tvoří jeden příběh proměny.
                 </div>
               </div>
             ) : null}
@@ -1075,11 +1127,11 @@ export default function MyAlbumsPage() {
               const rels = Array.isArray(album.post_albums) ? album.post_albums : [];
 
               return (
-                <section key={album.id} className="rounded-2xl bg-white p-5 shadow">
+                <section key={album.id} className="rounded-2xl bg-white p-5">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0">
                       <h2 className="font-bold text-lg text-slate-900">
-                        {album.title || `Zmena #${album.id}`}
+                        {album.title || `Změna #${album.id}`}
                       </h2>
 
                       {album.description ? (
@@ -1089,7 +1141,7 @@ export default function MyAlbumsPage() {
                       ) : null}
 
                       <div className="mt-2 flex flex-col gap-1 text-xs text-slate-500">
-                        <div>Vytvoreno: {formatRelativeUiTimestamp(album.created_at ?? null)}</div>
+                        <div>Vytvořeno: {formatRelativeUiTimestamp(album.created_at ?? null)}</div>
                         <div>Aktualizováno: {formatRelativeUiTimestamp(album.updated_at ?? null)}</div>
                       </div>
 
@@ -1100,19 +1152,19 @@ export default function MyAlbumsPage() {
 
                     <div className="flex flex-wrap items-center gap-2">
                       <AwButton onClick={() => handleOpenEditAlbum(album)} disabled={busyAlbumId === album.id}>
-                        Editovat zmenu
+                        Editovat změnu
                       </AwButton>
 
                       <AwButton variant="tertiary" onClick={() => handleDeleteAlbum(album.id)} disabled={busyAlbumId === album.id}>
-                        {busyAlbumId === album.id ? "Pracuji..." : "Smazat zmenu"}
+                        {busyAlbumId === album.id ? "Pracuji..." : "Smazat změnu"}
                       </AwButton>
                     </div>
                   </div>
 
                   <div className="mt-4 space-y-6">
                     {rels.length === 0 ? (
-                      <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
-                        Tato zmena zatím neobsahuje žádné posty.
+                      <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
+                        Tato změna zatím neobsahuje žádné posty.
                       </div>
                     ) : (
                       rels.map((rel) => {
@@ -1124,6 +1176,7 @@ export default function MyAlbumsPage() {
                               post={toChangePostCardPost(post, userId)}
                               currentUserId={userId}
                               hideAlbumBadge
+                              borderlessCard
                               ownerInfoMode="aw_score"
                               onPostChanged={loadAlbums}
                             />
@@ -1138,12 +1191,12 @@ export default function MyAlbumsPage() {
           </>
         ) : (
           <div className="space-y-4">
-            <div className="rounded-2xl bg-white p-5 shadow">
+            <div className="rounded-2xl bg-white p-5">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <div className="text-sm font-semibold text-slate-900">Vybrané fotografie</div>
                   <div className="mt-1 text-xs text-slate-600">
-                    Fotky mužeš filtrovat podle období, kategorie, experimentálních snímku i podle toho, kde pusobíš výrazne mladší nebo starší.
+                    Fotky můžeš filtrovat podle období, kategorie, experimentálních snímků i podle toho, kde působíš výrazne mladší nebo starší.
                   </div>
                 </div>
                 <div className="text-sm font-semibold text-slate-700">
@@ -1153,10 +1206,10 @@ export default function MyAlbumsPage() {
             </div>
 
             {filteredChallengePhotos.length === 0 ? (
-              <div className="rounded-2xl bg-white p-6 shadow">
+              <div className="rounded-2xl bg-white p-6">
                 <div className="text-base font-semibold text-slate-900">Žádné fotografie neodpovídají zadaným filtrum</div>
                 <div className="mt-2 text-sm text-slate-600">
-                  Zkus rozšírit období, zmenit kategorii nebo vypnout nekterý z filtru.
+                  Zkus rozšířit období, změnit kategorii nebo vypnout některý z filtrů.
                 </div>
               </div>
             ) : (
@@ -1166,7 +1219,7 @@ export default function MyAlbumsPage() {
                   const delta = awReference !== null && photo.realAgeYears !== null ? awReference - photo.realAgeYears : null;
 
                   return (
-                    <article key={photo.key} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                    <article key={photo.key} className="overflow-hidden rounded-2xl bg-white">
                       <div className="aspect-[4/3] bg-slate-100">
                         {photo.thumbUrl ? (
                           <img src={photo.thumbUrl} alt="" className="h-full w-full object-cover" />
@@ -1192,7 +1245,7 @@ export default function MyAlbumsPage() {
                             {photo.postTitle?.trim() ? photo.postTitle : `Fotka #${photo.imageId}`}
                           </div>
                           <div className="mt-1 text-xs text-slate-500">
-                            Zmena: {photo.albumTitle ?? `Zmena #${photo.albumId}`}
+                            Změna: {photo.albumTitle ?? `Změna #${photo.albumId}`}
                           </div>
                         </div>
 
@@ -1200,22 +1253,22 @@ export default function MyAlbumsPage() {
                           <InfoCell label="Vek" value={photo.realAgeYears !== null ? `${photo.realAgeYears.toFixed(1)} let` : "-"} />
                           <InfoCell label="AW vek" value={awReference !== null ? `${awReference.toFixed(1)} let` : "-"} />
                           <InfoCell label="Hodnocení" value={String(photo.guessesCount)} />
-                          <InfoCell label="Viditelnost zmeny" value={albumVisibilityLabel(photo.albumVisibility)} />
+                          <InfoCell label="Viditelnost změny" value={albumVisibilityLabel(photo.albumVisibility)} />
                         </div>
 
-                        <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-emerald-950">
+                        <div className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-950">
                           {ageDeltaText(delta)}
                         </div>
 
                         {photo.comment?.trim() ? (
-                          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                          <div className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
                             {photo.comment.trim()}
                           </div>
                         ) : null}
 
                         <div className="space-y-1 text-xs text-slate-500">
                           <div>Porízeno: {formatDate(photo.takenAt)}</div>
-                          <div>Uverejneno: {formatDate(photo.postCreatedAt)}</div>
+                          <div>Uveřejněno: {formatDate(photo.postCreatedAt)}</div>
                         </div>
 
                         <div className="flex flex-wrap gap-3 text-sm font-semibold text-emerald-700">
@@ -1223,7 +1276,7 @@ export default function MyAlbumsPage() {
                             Otevrít fotografii
                           </Link>
                           <Link href={`/profile/albums/${photo.albumId}`} className="hover:underline">
-                            Otevrít zmenu
+                            Otevřít změnu
                           </Link>
                           <Link href={`/profile/posts/${photo.postId}`} className="hover:underline">
                             Otevrít post
@@ -1239,6 +1292,77 @@ export default function MyAlbumsPage() {
         )}
       </div>
     </>
+  );
+}
+
+function ChangeCreateModal({
+  open,
+  busy,
+  onClose,
+  onCreate,
+}: {
+  open: boolean;
+  busy: boolean;
+  onClose: () => void;
+  onCreate: (payload: {
+    title: string;
+    description: string;
+    visibility: NonNullable<AlbumRow["visibility"]>;
+  }) => Promise<void>;
+}) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [visibility, setVisibility] = useState<NonNullable<AlbumRow["visibility"]>>("everyone");
+
+  useEffect(() => {
+    if (!open) return;
+    setTitle("");
+    setDescription("");
+    setVisibility("everyone");
+  }, [open]);
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="w-full max-w-xl rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h3 className="text-lg font-bold text-slate-900">Nová změna</h3>
+            <p className="mt-1 text-sm text-slate-600">Vytvoř si kolekci postů a fotek, která popisuje tvoji proměnu v čase.</p>
+          </div>
+          <CloseButton onClick={onClose} disabled={busy} label="Zavřít vytvoření změny" />
+        </div>
+
+        <div className="mt-4 grid gap-4">
+          <label className="grid gap-1">
+            <span className="text-sm font-semibold text-slate-800">Název změny</span>
+            <input value={title} onChange={(e) => setTitle(e.target.value)} disabled={busy} className="rounded-xl px-3 py-2 text-sm outline-none focus:border-emerald-500" placeholder="Např. Moje proměna" />
+          </label>
+
+          <label className="grid gap-1">
+            <span className="text-sm font-semibold text-slate-800">Popis změny</span>
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} disabled={busy} rows={4} className="rounded-xl px-3 py-2 text-sm outline-none focus:border-emerald-500" placeholder="Krátce popiš, co tato změna zachycuje." />
+          </label>
+
+          <label className="grid gap-1">
+            <span className="text-sm font-semibold text-slate-800">Viditelnost</span>
+            <select value={visibility} onChange={(e) => setVisibility(e.target.value as NonNullable<AlbumRow["visibility"]>)} disabled={busy} className="rounded-xl bg-white px-3 py-2 text-sm text-slate-900">
+              <option value="everyone">Viditelné pro všechny</option>
+              <option value="contacts">Viditelné pro kontakty</option>
+              <option value="private">Soukromé</option>
+            </select>
+          </label>
+        </div>
+
+        <div className="mt-5 flex items-center justify-end gap-2">
+          <AwButton variant="tertiary" onClick={onClose} disabled={busy}>Zrušit</AwButton>
+          <AwButton variant="primary" onClick={() => onCreate({ title, description, visibility })} disabled={busy || !title.trim()}>
+            {busy ? "Vytvářím..." : "Vytvořit změnu"}
+          </AwButton>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1290,7 +1414,7 @@ function ChallengeEditModal({
           <div>
             <h3 className="text-lg font-bold text-slate-900">Editovat výzvu</h3>
             <p className="mt-1 text-sm leading-6 text-slate-600">
-              Aktivní výzvu mužeš upravit jen v bezpecných polích. Startovní AW skóre, cíl a puvodní termín zustávají zamcené.
+              Aktivní výzvu můžeš upravit jen v bezpečných polích. Startovní AW skóre, cíl a původní termín zůstávají zamčené.
             </p>
           </div>
           <CloseButton onClick={onClose} disabled={busy} label="Zavřít editaci" />
@@ -1300,7 +1424,7 @@ function ChallengeEditModal({
           <div className="grid gap-3 md:grid-cols-3">
             <InfoCell label="Start" value={formatAwScore(challenge.baseline_aw_score_norm_pct)} />
             <InfoCell label="Cíl" value={formatAwScore(challenge.target_aw_score_norm_pct)} />
-            <InfoCell label="Puvodní termín" value={formatDate(challenge.target_date_original)} />
+            <InfoCell label="Původní termín" value={formatDate(challenge.target_date_original)} />
           </div>
 
           <label className="grid gap-1">
@@ -1309,7 +1433,7 @@ function ChallengeEditModal({
               value={title}
               onChange={(event) => onTitleChange(event.target.value)}
               disabled={busy}
-              className="rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500 disabled:opacity-60"
+              className="rounded-xl px-3 py-2 text-sm outline-none focus:border-emerald-500 disabled:opacity-60"
             />
           </label>
 
@@ -1322,7 +1446,7 @@ function ChallengeEditModal({
                 min={challenge.target_date_current}
                 onChange={(event) => onTargetDateChange(event.target.value)}
                 disabled={busy}
-                className="rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500 disabled:opacity-60"
+                className="rounded-xl px-3 py-2 text-sm outline-none focus:border-emerald-500 disabled:opacity-60"
               />
               <span className="text-xs text-slate-500">Termín lze jen prodloužit.</span>
             </label>
@@ -1333,11 +1457,11 @@ function ChallengeEditModal({
                 value={visibility}
                 onChange={(event) => onVisibilityChange(event.target.value as ChallengeVisibility)}
                 disabled={busy}
-                className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 disabled:opacity-60"
+                className="rounded-xl bg-white px-3 py-2 text-sm text-slate-900 disabled:opacity-60"
               >
                 <option value="private">Soukromá</option>
                 <option value="contacts">Pro kontakty</option>
-                <option value="everyone">Verejná</option>
+                <option value="everyone">Veřejná</option>
               </select>
             </label>
           </div>
@@ -1349,12 +1473,12 @@ function ChallengeEditModal({
               onChange={(event) => onPrivateGoalChange(event.target.value)}
               disabled={busy}
               rows={4}
-              className="rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500 disabled:opacity-60"
+              className="rounded-xl px-3 py-2 text-sm outline-none focus:border-emerald-500 disabled:opacity-60"
             />
           </label>
 
           {challenge.photo_scope === "auto_period" ? (
-            <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+            <label className="flex items-start gap-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-700">
               <input
                 type="checkbox"
                 checked={includeExperimentalImages}
@@ -1365,8 +1489,8 @@ function ChallengeEditModal({
               <span>
                 <span className="font-semibold text-slate-900">Pocítat i experimentální fotky</span>
                 <span className="mt-1 block text-xs leading-5 text-slate-500">
-                  Platí jen pro výzvy bez tagu. Jakmile se fotka do výzvy jednou zahrne, zustane v ní i tehdy,
-                  když ji pozdeji oznacíš jako experimentální.
+                  Platí jen pro výzvy bez tagu. Jakmile se fotka do výzvy jednou zahrne, zůstane v ní i tehdy,
+                  když ji později označíš jako experimentální.
                 </span>
               </span>
             </label>
@@ -1378,14 +1502,14 @@ function ChallengeEditModal({
               value={privateGoalVisibility}
               onChange={(event) => onPrivateGoalVisibilityChange(event.target.value as AwChallengePrivateGoalVisibility)}
               disabled={busy}
-              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 disabled:opacity-60"
+              className="rounded-xl bg-white px-3 py-2 text-sm text-slate-900 disabled:opacity-60"
             >
               <option value="private">Zatím soukromý</option>
-              <option value="everyone">Zverejnit</option>
+              <option value="everyone">Zveřejnit</option>
             </select>
           </label>
 
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+          <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-700">
             <div className="mb-3 rounded-xl bg-white px-3 py-2">
               <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Odkaz na výzvu</div>
               <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -1404,19 +1528,19 @@ function ChallengeEditModal({
               </span>
             </div>
             <div className="mt-1">
-              Tag: <span className="font-semibold">{challenge.challenge_tag ?? "zatím nevytvoren"}</span>
+              Tag: <span className="font-semibold">{challenge.challenge_tag ?? "zatím nevytvořen"}</span>
             </div>
             {!challenge.challenge_tag ? (
               <div className="mt-3">
                 <AwButton onClick={() => void onCreateTag(challenge)} disabled={busy || tagBusy}>
                   {tagBusy
-                    ? "Vytvárím tag..."
+                    ? "Vytvářím tag..."
                     : challenge.photo_scope === "auto_period"
-                      ? "Zmenit rozsah na vybrané fotky a vytvorit tag"
-                      : "Vytvorit tag výzvy"}
+                      ? "Změnit rozsah na vybrané fotky a vytvořit tag"
+                      : "Vytvořit tag výzvy"}
                 </AwButton>
                 <p className="mt-2 text-xs leading-5 text-slate-500">
-                  Jakmile tag vytvoríš, bude se nabízet pri pridávání fotek a postu. Pro výzvu s rozsahem pres tag urcuje, které fotky k výzve patrí.
+                  Jakmile tag vytvoříš, bude se nabízet při přidávání fotek a postů. Pro výzvu s rozsahem přes tag určuje, které fotky k výzvě patří.
                 </p>
               </div>
             ) : null}
@@ -1513,11 +1637,11 @@ function ChallengesSection({
 }) {
   return (
     <div className="space-y-5">
-      <div className="rounded-2xl bg-white p-5 shadow">
+      <div className="rounded-2xl bg-white p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="text-base font-bold text-slate-900">AW výzvy</div>
-            <div className="mt-1 text-sm text-slate-600">Vytvor si meritelný cíl pro posun AW skóre.</div>
+            <div className="mt-1 text-sm text-slate-600">Vytvoř si měřitelný cíl pro posun AW skóre.</div>
           </div>
           <AwButton variant="primary" onClick={onOpenCreate}>
             Nová výzva
@@ -1528,23 +1652,24 @@ function ChallengesSection({
       {createOpen ? (
         <div className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto bg-black/60 p-4" role="dialog" aria-modal="true" onClick={onCloseCreate}>
           <div className="w-full max-w-5xl" onClick={(event) => event.stopPropagation()}>
-      <div className="rounded-2xl bg-white p-5 shadow">
+      <div className="rounded-2xl bg-white p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-base font-bold text-slate-900">Nová AW výzva</div>
             <p className="mt-1 text-sm leading-6 text-slate-600">
-              Výzva uloží pocátecní AW skóre podle aktuálních pravidel AgeWinners a na konci ho porovná s konecnou hodnotou.
+              Výzva uloží počáteční AW skóre podle aktuálních pravidel AgeWinners a na konci ho porovná s konečnou hodnotou.
             </p>
           </div>
           <HelpIconButton
-            helpText="AW skóre má vlastní oficiální výpocet a výzvy ho nemení.\n\nPri vytvorení výzvy se uloží aktuální AW skóre jako startovní hodnota. Na konci výzvy se porovná s konecným AW skóre.\n\nPo spuštení nepujde zpetne zmenit startovní hodnota, cíl, puvodní termín ani rozsah fotek. Soukromý cíl mužeš pozdeji zverejnit."
+            helpText="AW skóre má vlastní oficiální výpočet a výzvy ho nemění.\n\nPři vytvoření výzvy se uloží aktuální AW skóre jako startovní hodnota. Na konci výzvy se porovná s konečným AW skóre.\n\nPo spuštění nepůjde zpětně změnit startovní hodnota, cíl, původní termín ani rozsah fotek. Soukromý cíl můžeš později zveřejnit."
+            helpKey="challenge-create"
             modalTitle="Nápoveda - AW výzvy"
           />
           <CloseButton onClick={onCloseCreate} disabled={busy} label="Zavřít formulář" />
         </div>
 
         {statsError ? (
-          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          <div className="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
             Aktuální AW skóre se nepodarilo nacíst: {statsError}
           </div>
         ) : null}
@@ -1556,29 +1681,29 @@ function ChallengesSection({
               <input
                 value={title}
                 onChange={(event) => onTitleChange(event.target.value)}
-                className="rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                placeholder="Napr. Muj rocní restart"
+                className="rounded-xl px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                placeholder="Např. Muj rocní restart"
               />
             </label>
 
             <div className="grid gap-3 md:grid-cols-3">
               <InfoCell label="Startovní AW skóre" value={formatAwScore(currentAwScore)} />
-              <label className="grid gap-1 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <label className="grid gap-1 rounded-xl bg-slate-50 p-3">
                 <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Cílové AW skóre</span>
                 <input
                   value={targetScore}
                   onChange={(event) => onTargetScoreChange(event.target.value)}
-                  className="mt-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none focus:border-emerald-500"
+                  className="mt-1 rounded-lg bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none focus:border-emerald-500"
                   placeholder="-3"
                 />
               </label>
-              <label className="grid gap-1 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <label className="grid gap-1 rounded-xl bg-slate-50 p-3">
                 <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Termín</span>
                 <input
                   type="date"
                   value={targetDate}
                   onChange={(event) => onTargetDateChange(event.target.value)}
-                  className="mt-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none focus:border-emerald-500"
+                  className="mt-1 rounded-lg bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none focus:border-emerald-500"
                 />
               </label>
             </div>
@@ -1589,11 +1714,11 @@ function ChallengesSection({
                 <select
                   value={visibility}
                   onChange={(event) => onVisibilityChange(event.target.value as ChallengeVisibility)}
-                  className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                  className="rounded-xl bg-white px-3 py-2 text-sm text-slate-900"
                 >
                   <option value="private">Soukromá</option>
                   <option value="contacts">Pro kontakty</option>
-                  <option value="everyone">Verejná</option>
+                  <option value="everyone">Veřejná</option>
                 </select>
               </label>
 
@@ -1602,14 +1727,14 @@ function ChallengesSection({
                 <select
                   value={scope}
                   onChange={(event) => onScopeChange(event.target.value as ChallengeScope)}
-                  className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                  className="rounded-xl bg-white px-3 py-2 text-sm text-slate-900"
                 >
                   <option value="auto_period">Všechny nové fotky v období výzvy</option>
                   <option value="challenge_tag">Jen fotky/posty s tagem výzvy</option>
                 </select>
                 {scope === "challenge_tag" ? (
                   <span className="text-xs text-slate-500">
-                    Tag se bude nabízet pri pridávání fotek a postu. Musí být jedinecný v rámci tvého úctu.
+                    Tag se bude nabízet při přidávání fotek a postů. Musí být jedinečný v rámci tvého účtu.
                   </span>
                 ) : null}
               </label>
@@ -1622,7 +1747,7 @@ function ChallengesSection({
                   <input
                     value={challengeTagDraft}
                     onChange={(event) => onChallengeTagDraftChange(event.target.value)}
-                    className="min-w-0 flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                    className="min-w-0 flex-1 rounded-xl px-3 py-2 text-sm outline-none focus:border-emerald-500"
                     placeholder={suggestedChallengeTag}
                   />
                   <AwButton size="sm" onClick={() => onChallengeTagDraftChange(suggestedChallengeTag)} className="text-xs">
@@ -1636,7 +1761,7 @@ function ChallengesSection({
             ) : null}
 
             {scope === "auto_period" ? (
-              <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+              <label className="flex items-start gap-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-700">
                 <input
                   type="checkbox"
                   checked={includeExperimentalImages}
@@ -1658,8 +1783,8 @@ function ChallengesSection({
                 value={privateGoal}
                 onChange={(event) => onPrivateGoalChange(event.target.value)}
                 rows={3}
-                className="rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                placeholder="Jen pro tebe. Napr. co chceš zmenit v režimu, stylu, pohybu nebo péci o sebe."
+                className="rounded-xl px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                placeholder="Jen pro tebe. Např. co chceš změnit v režimu, stylu, pohybu nebo péči o sebe."
               />
             </label>
 
@@ -1668,29 +1793,29 @@ function ChallengesSection({
               <select
                 value={privateGoalVisibility}
                 onChange={(event) => onPrivateGoalVisibilityChange(event.target.value as AwChallengePrivateGoalVisibility)}
-                className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                className="rounded-xl bg-white px-3 py-2 text-sm text-slate-900"
               >
                 <option value="private">Zatím soukromý</option>
-                <option value="everyone">Zverejnit už ted</option>
+                <option value="everyone">Zveřejnit už teď</option>
               </select>
-              <span className="text-xs text-slate-500">Soukromý cíl mužeš v prubehu výzvy nebo po ní zmenit na verejný.</span>
+              <span className="text-xs text-slate-500">Soukromý cíl můžeš v průběhu výzvy nebo po ní změnit na veřejný.</span>
             </label>
 
             <label className="grid gap-1">
-              <span className="text-sm font-semibold text-slate-800">Text pro verejný post</span>
+              <span className="text-sm font-semibold text-slate-800">Text pro veřejný post</span>
               <textarea
                 value={publicMessage}
                 onChange={(event) => onPublicMessageChange(event.target.value)}
                 rows={3}
-                className="rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                placeholder="Jdu do AW výzvy. Chci posunout svoje AW skóre a sledovat zmenu v case."
+                className="rounded-xl px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                placeholder="Jdu do AW výzvy. Chci posunout svoje AW skóre a sledovat změnu v čase."
               />
             </label>
           </div>
 
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+          <div className="rounded-2xl bg-emerald-50 p-4">
             <div className="text-sm font-bold text-emerald-950">Náhled výzvy</div>
-            <div className="mt-3 rounded-2xl bg-white p-4 shadow-sm">
+            <div className="mt-3 rounded-2xl bg-white p-4">
               <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700">AW výzva</div>
               <div className="mt-2 text-lg font-bold text-slate-950">{title || "Moje AW výzva"}</div>
               <div className="mt-3 grid gap-2 text-sm">
@@ -1711,8 +1836,8 @@ function ChallengesSection({
                   <span className="font-bold text-slate-900">{challengeVisibilityLabel(visibility)}</span>
                 </div>
               </div>
-              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-700">
-                {publicMessage.trim() || "Jdu do AW výzvy. Chci posunout svoje AW skóre a sledovat zmenu v case."}
+              <div className="mt-4 rounded-xl bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-700">
+                {publicMessage.trim() || "Jdu do AW výzvy. Chci posunout svoje AW skóre a sledovat změnu v čase."}
               </div>
             </div>
 
@@ -1725,11 +1850,11 @@ function ChallengesSection({
             </div>
 
             <div className="mt-3 rounded-xl bg-white/70 px-3 py-2 text-xs leading-5 text-emerald-950">
-              Odkaz pro sdílení vznikne po vytvorení výzvy.
+              Odkaz pro sdílení vznikne po vytvoření výzvy.
             </div>
 
             <AwButton variant="primary" onClick={() => void onCreate()} disabled={busy} className="mt-4 w-full">
-              {busy ? "Ukládám..." : "Vytvorit výzvu"}
+              {busy ? "Ukládám..." : "Vytvořit výzvu"}
             </AwButton>
           </div>
         </div>
@@ -1738,17 +1863,18 @@ function ChallengesSection({
         </div>
       ) : null}
 
-      {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{error}</div> : null}
+      {error ? <div className="rounded-2xl bg-rose-50 p-4 text-sm text-rose-800">{error}</div> : null}
 
-      <div className="rounded-2xl bg-white p-5 shadow">
+      <div className="rounded-2xl bg-white p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-base font-bold text-slate-900">Moje výzvy</div>
             <div className="mt-1 text-sm text-slate-600">Aktivní a historické AW výzvy.</div>
           </div>
           <HelpIconButton
-            helpText="Seznam zobrazuje uložené výzvy. Startovní a cílové AW skóre jsou uložené hodnoty pro porovnání prubehu.\n\nDalší iterace doplní dokoncení výzvy, prodloužení termínu, pozvánky a automatické párování fotek."
-            modalTitle="Nápoveda - moje výzvy"
+            helpText="Seznam zobrazuje uložené výzvy. Startovní a cílové AW skóre jsou uložené hodnoty pro porovnání průběhu.\n\nU aktivní výzvy můžeš upravit bezpečná pole, prodloužit termín, vytvořit tag a sdílet odkaz. Fotky se do výzvy párují podle zvoleného rozsahu: buď automaticky podle období, nebo přes tag výzvy."
+            helpKey="challenge-list"
+            modalTitle="Nápověda - moje výzvy"
           />
         </div>
 
@@ -1761,7 +1887,7 @@ function ChallengesSection({
         {!loading && challenges.length > 0 ? (
           <div className="mt-4 grid gap-3">
             {challenges.map((challenge) => (
-              <div key={challenge.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <div key={challenge.id} className="rounded-2xl bg-white p-4">
                 <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                   <div>
                     <div className="text-sm font-bold text-slate-900">{challenge.title}</div>
@@ -1780,7 +1906,7 @@ function ChallengesSection({
                     ) : null}
                     {!challenge.challenge_tag ? (
                       <AwButton size="sm" onClick={() => void onCreateTag(challenge)} disabled={tagBusyChallengeId === challenge.id} className="text-xs">
-                        {tagBusyChallengeId === challenge.id ? "Vytvárím tag..." : "Vytvorit tag"}
+                        {tagBusyChallengeId === challenge.id ? "Vytvářím tag..." : "Vytvořit tag"}
                       </AwButton>
                     ) : null}
                   </div>
@@ -1816,8 +1942,8 @@ function ChallengesSection({
                 ) : null}
 
                 {challenge.private_goal && challenge.private_goal_visibility === "everyone" ? (
-                  <div className="mt-3 rounded-xl border border-emerald-100 bg-white px-3 py-2 text-sm text-slate-700">
-                    Soukromý cíl zverejnen: {challenge.private_goal}
+                  <div className="mt-3 rounded-xl bg-white px-3 py-2 text-sm text-slate-700">
+                    Soukromý cíl zveřejněn: {challenge.private_goal}
                   </div>
                 ) : null}
               </div>
@@ -1828,16 +1954,16 @@ function ChallengesSection({
 
       <div className="grid gap-4 lg:grid-cols-3">
         <ChallengeInfoCard
-          title="Nemenné po spuštení"
-          text="Startovní AW skóre, cíl, puvodní termín a rozsah fotek se po aktivaci výzvy zamknou."
+          title="Nemenné po spuštění"
+          text="Startovní AW skóre, cíl, původní termín a rozsah fotek se po aktivaci výzvy zamknou."
         />
         <ChallengeInfoCard
           title="Prodloužení je fér"
-          text="Když termín nestihneš, výzvu pujde prodloužit. Puvodní nesplnený termín ale zustane v historii."
+          text="Když termín nestihneš, výzvu půjde prodloužit. Původní nesplněný termín ale zůstane v historii."
         />
         <ChallengeInfoCard
           title="Soukromý cíl zustává soukromý"
-          text="Verejne se komunikuje AW skóre. Osobní formulace cíle zustane jen pro tebe."
+          text="Veřejně se komunikuje AW skóre. Osobní formulace cíle zůstane jen pro tebe."
         />
       </div>
     </div>
@@ -1846,7 +1972,7 @@ function ChallengesSection({
 
 function ChallengeInfoCard({ title, text }: { title: string; text: string }) {
   return (
-    <div className="rounded-2xl bg-white p-5 shadow">
+    <div className="rounded-2xl bg-white p-5">
       <div className="text-sm font-bold text-slate-900">{title}</div>
       <p className="mt-2 text-sm leading-6 text-slate-600">{text}</p>
     </div>
@@ -1867,7 +1993,7 @@ function ViewTabButton({
       type="button"
       onClick={onClick}
       className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
-        active ? "bg-emerald-600 text-white" : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+        active ? "bg-[#32CD32] text-white" : "bg-white text-slate-700 hover:bg-slate-50"
       }`}
     >
       {children}
@@ -1877,10 +2003,14 @@ function ViewTabButton({
 
 function InfoCell({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+    <div className="rounded-xl bg-slate-50 p-3">
       <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
       <div className="mt-1 text-sm font-semibold text-slate-900">{value}</div>
     </div>
   );
 }
+
+
+
+
 

@@ -254,8 +254,8 @@ export async function loadMyTipPhotos(params: { currentUserId: string; limit?: n
  * - if post is in album -> use album.visibility
  * - else -> use post.visibility
  */
-export async function loadMyTipPosts(params: { currentUserId: string; limit?: number }) {
-  const { currentUserId, limit = 300 } = params;
+export async function loadMyTipPosts(params: { currentUserId: string; limit?: number; revealDelayDays?: number }) {
+  const { currentUserId, limit = 300, revealDelayDays: providedRevealDelayDays } = params;
 
   const viewerProfile = await getViewerProfile(currentUserId);
   const privileged = isPrivilegedViewer(viewerProfile);
@@ -263,7 +263,9 @@ export async function loadMyTipPosts(params: { currentUserId: string; limit?: nu
 
   const [photos, revealDelayDays] = await Promise.all([
     loadMyTipPhotos({ currentUserId, limit }),
-    getPostRevealDelayDays().catch(() => DEFAULT_POST_REVEAL_DELAY_DAYS),
+    providedRevealDelayDays == null
+      ? getPostRevealDelayDays().catch(() => DEFAULT_POST_REVEAL_DELAY_DAYS)
+      : Promise.resolve(providedRevealDelayDays),
   ]);
 
   const postIds = uniq(

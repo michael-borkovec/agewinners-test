@@ -1,4 +1,4 @@
-/**
+﻿/**
  * File purpose
  * - Render AW age trajectory chart across multiple time windows
  * - Show AW age against continuous real age at each point
@@ -77,7 +77,7 @@ function ageAppearanceText(realAge: number | null | undefined, awAge: number | n
 
   if (awAge < realAge) return "vypadáš mladší";
   if (awAge > realAge) return "vypadáš starší";
-  return "vypadáš presne na svuj vek";
+  return "vypadáš přesně na svůj věk";
 }
 
 type ChartPointRow = AwAgeTrajectoryRow & {
@@ -103,8 +103,9 @@ export default function AwAgeTrajectoryChart(props: {
   view: AwAgeTrajectoryView;
   tags: string[];
   includeExperimental: boolean;
+  refreshKey?: number;
 }) {
-  const { view, tags, includeExperimental } = props;
+  const { view, tags, includeExperimental, refreshKey = 0 } = props;
   const router = useRouter();
   const tagKey = tags.join("|");
   const activeTags = useMemo(() => (tagKey ? tagKey.split("|").filter(Boolean) : []), [tagKey]);
@@ -155,7 +156,7 @@ export default function AwAgeTrajectoryChart(props: {
         }
       } catch (e: unknown) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Graf se nepodarilo nacíst.");
+          setError(e instanceof Error ? e.message : "Graf se nepodařilo načíst.");
           setRows([]);
         }
       } finally {
@@ -168,7 +169,7 @@ export default function AwAgeTrajectoryChart(props: {
     return () => {
       cancelled = true;
     };
-  }, [view, activeTags, includeExperimental]);
+  }, [view, activeTags, includeExperimental, refreshKey]);
 
   const sortedRows = useMemo(() => {
     return [...rows].sort((a, b) => new Date(a.point_date).getTime() - new Date(b.point_date).getTime());
@@ -281,7 +282,7 @@ export default function AwAgeTrajectoryChart(props: {
 
   return (
     <>
-      <svg viewBox={`0 0 ${W} ${H}`} className="mt-4 h-auto w-full" role="img" aria-label="Tvuj AW vek v case">
+      <svg viewBox={`0 0 ${W} ${H}`} className="mt-4 h-auto w-full" role="img" aria-label="Tvůj AW věk v čase">
         {yTicks.map((t) => (
           <line key={`grid-y-${t}`} x1={padLeft} y1={sy(t)} x2={padLeft + plotW} y2={sy(t)} stroke="#e5e7eb" strokeWidth={1} />
         ))}
@@ -326,11 +327,11 @@ export default function AwAgeTrajectoryChart(props: {
         })}
 
         <text x={padLeft + plotW / 2} y={H - 10} textAnchor="middle" fontSize="12" fill="#475569">
-          Vek
+          Věk
         </text>
 
         <text transform={`translate(16 ${padTop + plotH / 2}) rotate(-90)`} textAnchor="middle" fontSize="12" fill="#475569">
-          AW vek
+          AW věk
         </text>
 
         {awLineSegments.map((segment, index) => (
@@ -356,7 +357,7 @@ export default function AwAgeTrajectoryChart(props: {
           return (
             <g key={r.point_date}>
               <title>
-                {`Vek ${fmt1(r.real_age_chart)} • AW ${fmt1(r.aw_age_at_point)} • ${appearance} • fotek v okne ${r.images_used}`}
+                {`Věk ${fmt1(r.real_age_chart)} • AW ${fmt1(r.aw_age_at_point)} • ${appearance} • fotek v okně ${r.images_used}`}
               </title>
 
               {typeof yAw === "number" ? (
@@ -377,11 +378,11 @@ export default function AwAgeTrajectoryChart(props: {
       <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-600">
         <div className="inline-flex items-center gap-2">
           <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#111827]" />
-          <span>Referencní diagonála</span>
+          <span>Referenční diagonála</span>
         </div>
         <div className="inline-flex items-center gap-2">
           <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#22c55e]" />
-          <span>AW vek</span>
+          <span>AW věk</span>
         </div>
         {hasDashedAwSegments ? (
           <div className="inline-flex items-center gap-2">
@@ -404,14 +405,14 @@ export default function AwAgeTrajectoryChart(props: {
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-base font-semibold text-slate-900">Rok {formatPointYear(selectedRow.point_date)}</div>
-              <div className="mt-1 text-xs text-slate-500">Detail vývoje AW veku pro vybraný rok.</div>
+              <div className="mt-1 text-xs text-slate-500">Detail vývoje AW věku pro vybraný rok.</div>
             </div>
             <CloseButton onClick={() => setSelectedRow(null)} label="Zavřít" />
           </div>
 
           <div className="mt-4 grid grid-cols-2 gap-3">
-            <MiniStat label="Vek" value={`${fmt1(selectedRow.real_age_chart)} let`} />
-            <MiniStat label="AW vek" value={`${fmt1(selectedRow.aw_age_at_point)} let`} />
+            <MiniStat label="Věk" value={`${fmt1(selectedRow.real_age_chart)} let`} />
+            <MiniStat label="AW věk" value={`${fmt1(selectedRow.aw_age_at_point)} let`} />
             <MiniStat
               label="Rozdíl"
               value={
@@ -420,10 +421,10 @@ export default function AwAgeTrajectoryChart(props: {
                   : `${selectedDelta > 0 ? "+" : ""}${selectedDelta.toFixed(1)} let`
               }
             />
-            <MiniStat label="Pocet fotek" value={String(selectedRow.images_used)} />
+            <MiniStat label="Počet fotek" value={String(selectedRow.images_used)} />
           </div>
 
-          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+          <div className="mt-4 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
             {ageAppearanceText(selectedRow.real_age_chart, selectedRow.aw_age_at_point)}
           </div>
 
@@ -439,9 +440,10 @@ export default function AwAgeTrajectoryChart(props: {
 
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+    <div className="rounded-xl bg-slate-50 p-3">
       <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
       <div className="mt-1 text-sm font-semibold text-slate-900">{value}</div>
     </div>
   );
 }
+

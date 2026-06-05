@@ -1,4 +1,4 @@
-/**
+﻿/**
  * File: app/profile/albums/[albumId]/page.tsx
  * Description:
  *   Detail alba – client-side (kvůli RLS + Next sync dynamic params).
@@ -246,7 +246,7 @@ export default function AlbumDetailPage() {
       ) : error ? (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-900">{error}</div>
       ) : !album ? null : (
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
           <div className="flex max-h-[520px] items-center justify-center bg-gray-50">
             {coverUrl ? (
               <img src={coverUrl} alt="Cover" className="h-full w-full object-contain" referrerPolicy="no-referrer" />
@@ -278,3 +278,4 @@ export default function AlbumDetailPage() {
     </section>
   );
 }
+

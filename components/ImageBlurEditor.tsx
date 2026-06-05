@@ -1,4 +1,4 @@
-/**
+﻿/**
  * File purpose
  * - MVP editor for blurring selected elliptical areas on a local image before upload.
  * - Handles mouse selection, undo, preview rendering, and exporting an edited File.
@@ -351,6 +351,7 @@ export default function ImageBlurEditor({ open, file, previewUrl, onCancel, onSa
             </h2>
             <HelpIconButton
               helpText={HELP_TEXT}
+              helpKey="image-blur"
               title="Nápověda"
               modalTitle="Nápověda"
               className="p-1"
@@ -364,7 +365,7 @@ export default function ImageBlurEditor({ open, file, previewUrl, onCancel, onSa
 
         <p className="mt-4 text-sm font-medium text-slate-700">Tažením myši označte oblast pro rozmazání.</p>
 
-        <div className="mt-3 overflow-auto rounded-lg border border-slate-200 bg-slate-950/5 p-2">
+        <div className="mt-3 overflow-auto rounded-lg bg-slate-950/5 p-2">
           {error ? (
             <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">{error}</div>
           ) : canvasSize ? (
@@ -406,3 +407,4 @@ export default function ImageBlurEditor({ open, file, previewUrl, onCancel, onSa
     </div>
   );
 }
+

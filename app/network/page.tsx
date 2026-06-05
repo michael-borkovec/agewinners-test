@@ -15,6 +15,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import HelpIconButton from "@/components/HelpIconButton";
 import { PageSectionTitle } from "@/components/PageSectionTitle";
+import SoftSectionIntro from "@/components/SoftSectionIntro";
 import RefreshIconButton from "@/components/RefreshIconButton";
 import AwButton from "@/components/AwButton";
 import { awAlert, awPrompt } from "@/components/AwDialog";
@@ -56,7 +57,7 @@ import {
 import { formatAbsoluteUiTimestamp, formatRelativeUiTimestamp } from "@/lib/utils/timeFormat";
 
 type TabKey = "connections" | "following" | "followers" | "requests" | "suggestions" | "blocked";
-type ModalUser = (NetworkUserLite & { connection_state?: NetworkSearchResult["connection_state"] }) | null;
+type ModalUser = (NetworkUserLite & { connection_state?: NetworkSearchResult["connection_state"]; is_following?: boolean }) | null;
 type RequestViewKey = "incoming" | "outgoing";
 type NetworkPanelKey = "overview" | "search";
 
@@ -116,6 +117,38 @@ function getConnectionStateTone(state: NetworkSearchResult["connection_state"] |
   if (state === "connected") return "emerald";
   if (state === "none") return "slate";
   return "amber";
+}
+
+function getRelationshipSummary(user: NonNullable<ModalUser>, insights: NetworkProfileInsights | null) {
+  const items: string[] = [];
+
+  if (insights?.is_blocked_by_me) {
+    items.push("Máš ho blokovaného");
+  }
+
+  if (user.connection_state === "connected") {
+    items.push("Jste ve spojení");
+  } else if (user.connection_state === "outgoing_request") {
+    items.push("Čeká na tvoji žádost o spojení");
+  } else if (user.connection_state === "incoming_request") {
+    items.push("Poslal/a ti žádost o spojení");
+  } else if (user.connection_state === "none") {
+    items.push("Nejste ve spojení");
+  }
+
+  if (user.is_following || user.following_since) {
+    items.push("Sleduješ ho");
+  }
+
+  if (user.follows_me) {
+    items.push("Sleduje tebe");
+  }
+
+  if (!items.length) {
+    items.push("Zatím bez jasné vazby");
+  }
+
+  return items;
 }
 
 function getSuggestionReasonChips(user: NetworkSearchResult) {
@@ -265,6 +298,7 @@ export default function NetworkPage() {
   }
 
   const header = useMemo(() => {
+    if (panel === "search") return "Vyhledat lidi";
     if (tab === "connections") return "Spojení";
     if (tab === "following") return "Sleduji";
     if (tab === "followers") return "Sledují mě";
@@ -272,7 +306,7 @@ export default function NetworkPage() {
     if (tab === "suggestions") return "Možná znáš";
     if (tab === "blocked") return "Blokovaní uživatelé";
     return "Žádosti o spojení";
-  }, [requestView, tab]);
+  }, [panel, requestView, tab]);
 
   const filteredSearchResults = useMemo(() => {
     return searchResults.filter((user) => {
@@ -494,22 +528,17 @@ export default function NetworkPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl p-6">
-      <div className="rounded-2xl bg-white p-5 shadow">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <PageSectionTitle
-              title="Moje síť"
-              iconPath="/ui/Menu-Moje-sit.ico"
-              sizeClassName="text-[1.625rem]"
-            />
-            <p className="mt-1 text-sm text-slate-600">Spojení jsou rovnocenná. Sledování je jednostranné. Blokace vychází z aktuálního seznamu blokovaných uživatelů.</p>
-          </div>
-
-          <div className="ml-auto flex shrink-0 items-center justify-end gap-1">
+    <div className="mx-auto max-w-5xl px-6 pb-6">
+      <div className="space-y-4">
+        <SoftSectionIntro
+          title="Moje síť"
+          iconPath="/ui/Menu-Moje-sit.ico"
+          actions={
+            <div className="ml-auto flex shrink-0 items-center justify-end gap-1">
             <HelpIconButton
-              helpText="Moje síť spojuje kontakty, sledování, žádosti i doporučení. Trychtýř otevře pokročilé hledání lidí. Obnovení stáhne aktuální přehled spojení, sledujících i čekajících žádostí."
-              modalTitle="Nápověda – Moje síť"
+              helpText="Moje síť spojuje kontakty, sledování, žádosti i doporučení na jednom místě.\n\nSpojení jsou rovnocenná, sledování je jednostranné. Filtr otevře pokročilé hledání lidí a refresh stáhne aktuální stav spojení, sledujících i čekajících žádostí.\n\nBlokace vychází z aktuálního seznamu blokovaných uživatelů a ovlivňuje, kdo se ti může zobrazovat."
+              helpKey="network"
+              modalTitle="Nápověda - Moje síť"
             />
             <button
               type="button"
@@ -522,7 +551,7 @@ export default function NetworkPage() {
               title="Filtry sítě"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={showAdvancedFilters || advancedFiltersActive ? "/funnel-full.ico" : "/funnel-empty.ico"} alt="" className="h-5 w-5" />
+              <img src={showAdvancedFilters || advancedFiltersActive ? "/icons/action/filter-full.png" : "/icons/action/filter-empty.png"} alt="" className="h-5 w-5" />
             </button>
             <RefreshIconButton
               onClick={() => {
@@ -533,19 +562,26 @@ export default function NetworkPage() {
               activeIconPath="/ui/refresh-rot.gif"
               activeDurationMs={5000}
             />
+            </div>
+          }
+        />
+
+        <div className="rounded-2xl bg-white p-5">
+        <div className="mt-6 flex flex-col gap-3 xl:flex-row xl:items-start">
+          <div className="grid flex-1 grid-cols-2 gap-3 md:grid-cols-5">
+            <CountPill label="Spojení" value={counts.connections} active={panel === "overview" && tab === "connections"} onClick={() => openOverviewTab("connections")} />
+            <CountPill label="Sleduji" value={counts.following} active={panel === "overview" && tab === "following"} onClick={() => openOverviewTab("following")} />
+            <CountPill label="Sledují mě" value={counts.followers} active={panel === "overview" && tab === "followers"} onClick={() => openOverviewTab("followers")} />
+            <CountPill label="Možná znáš" value={suggestions.length} active={panel === "overview" && tab === "suggestions"} onClick={() => openOverviewTab("suggestions")} />
+            <CountPill label="Vyhledat lidi" active={panel === "search"} onClick={() => setPanel("search")} />
+          </div>
+          <div className="xl:w-40">
+            <CountPill label="Blokovaní" value={counts.blocked} active={panel === "overview" && tab === "blocked"} muted onClick={() => openOverviewTab("blocked")} />
           </div>
         </div>
 
-        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
-          <CountPill label="Spojení" value={counts.connections} active={tab === "connections"} onClick={() => openOverviewTab("connections")} />
-          <CountPill label="Sleduji" value={counts.following} active={tab === "following"} onClick={() => openOverviewTab("following")} />
-          <CountPill label="Sledují mě" value={counts.followers} active={tab === "followers"} onClick={() => openOverviewTab("followers")} />
-          <CountPill label="Možná znáš" value={suggestions.length} active={tab === "suggestions"} onClick={() => openOverviewTab("suggestions")} />
-          <CountPill label="Blokovaní" value={counts.blocked} active={tab === "blocked"} onClick={() => openOverviewTab("blocked")} />
-        </div>
-
         {panel === "search" ? (
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <div className="mt-6 rounded-2xl bg-slate-50 p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <div className="text-sm font-semibold text-slate-900">Vyhledat uživatele</div>
@@ -563,7 +599,7 @@ export default function NetworkPage() {
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={showAdvancedFilters || advancedFiltersActive ? "/funnel-full.ico" : "/funnel-empty.ico"}
+                  src={showAdvancedFilters || advancedFiltersActive ? "/icons/action/filter-full.png" : "/icons/action/filter-empty.png"}
                   alt=""
                   className="h-5 w-5"
                 />
@@ -602,7 +638,7 @@ export default function NetworkPage() {
               </div>
 
               {showAdvancedFilters ? (
-                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <div className="rounded-2xl bg-white p-4">
                   <div className="flex flex-col gap-3 border-b border-slate-100 pb-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <div className="text-sm font-semibold text-slate-900">Upřesnit hledání</div>
@@ -737,6 +773,8 @@ export default function NetworkPage() {
           </div>
         ) : null}
 
+        {panel === "overview" ? (
+          <>
         <div className="mt-6">
           <h2 className="text-sm font-semibold text-slate-800">{header}</h2>
 
@@ -784,7 +822,7 @@ export default function NetworkPage() {
             <UserList
               users={following}
               emptyText="Zatím nikoho nesleduješ."
-              onOpenDetail={(user) => void openDetail(user)}
+              onOpenDetail={(user) => void openDetail({ ...user, is_following: true })}
               extraMeta={(user) => (
                 <>
                   <NetworkNumbers user={user} />
@@ -903,6 +941,9 @@ export default function NetworkPage() {
           </Link>
           .
         </p>
+          </>
+        ) : null}
+        </div>
       </div>
 
       <RelationshipDetailModal
@@ -918,17 +959,18 @@ export default function NetworkPage() {
   );
 }
 
-function CountPill(props: { label: string; value: number; active?: boolean; onClick?: () => void }) {
+function CountPill(props: { label: string; value?: number; active?: boolean; muted?: boolean; onClick?: () => void }) {
+  const inactiveClass = props.muted ? "bg-slate-100 text-slate-700 hover:bg-slate-200" : "bg-slate-50 text-slate-800 hover:bg-slate-100";
   return (
     <button
       type="button"
       onClick={props.onClick}
-      className={`rounded-xl border px-3 py-2 text-left transition focus:outline-none focus:ring-2 focus:ring-emerald-200 ${
-        props.active ? "border-emerald-300 bg-emerald-50 text-emerald-950" : "border-slate-200 bg-white hover:bg-slate-50"
+      className={`min-h-[76px] rounded-xl px-3 py-2 text-left transition focus:outline-none focus:ring-2 focus:ring-emerald-200 ${
+        props.active ? "bg-[#effdef] text-emerald-950" : inactiveClass
       }`}
     >
-      <div className="text-xs font-semibold text-slate-600">{props.label}</div>
-      <div className="text-lg font-extrabold text-slate-900">{props.value}</div>
+      <div className={`text-xs font-semibold ${props.active ? "text-emerald-900" : "text-slate-600"}`}>{props.label}</div>
+      {typeof props.value === "number" ? <div className="text-lg font-extrabold text-slate-900">{props.value}</div> : null}
     </button>
   );
 }
@@ -1102,7 +1144,7 @@ function TextActionButton(props: {
 
 function EmptyStateCard(props: { text: string; ctaHref?: string; ctaLabel?: string }) {
   return (
-    <div className="mt-2 rounded-2xl border border-dashed border-slate-200 bg-white p-4 text-sm text-slate-600">
+    <div className="mt-2 rounded-2xl bg-white p-4 text-sm text-slate-600">
       <div>{props.text}</div>
       {props.ctaHref && props.ctaLabel ? (
         <Link
@@ -1130,7 +1172,7 @@ function SearchResultRow(props: {
   const { user, busyKey } = props;
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-slate-300 hover:shadow-md">
+    <div className="rounded-2xl bg-white p-3 transition">
       <div className="flex items-start gap-3">
         <UserAvatar user={user} />
         <div className="min-w-0 flex-1">
@@ -1215,7 +1257,7 @@ function RequestRow(props: {
   createdAt?: string | null;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-slate-300 hover:shadow-md">
+    <div className="rounded-2xl bg-white p-3 transition">
       <div className="flex items-start gap-3">
         <UserAvatar user={props.user} />
         <div className="min-w-0 flex-1">
@@ -1239,7 +1281,7 @@ function RequestRow(props: {
           </div>
 
           {props.requestMessage?.trim() ? (
-            <div className="mt-2 line-clamp-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-slate-700">
+            <div className="mt-2 line-clamp-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-slate-700">
               {props.requestMessage.trim()}
             </div>
           ) : null}
@@ -1259,7 +1301,7 @@ function RequestsPanel<T extends ConnectionRequestRow>(props: {
   onOpenDetail: (user: NetworkUserLite) => void;
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+    <div className="rounded-xl bg-slate-50 p-3">
       <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{props.title}</div>
 
       {props.rows.length === 0 ? (
@@ -1301,7 +1343,7 @@ function UserList(props: {
   return (
     <div className="mt-3 space-y-2">
       {props.users.map((user) => (
-        <div key={user.user_id} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-slate-300 hover:shadow-md">
+        <div key={user.user_id} className="rounded-2xl bg-white p-3 transition">
           <div className="flex items-start gap-3">
             <UserAvatar user={user} />
             <div className="min-w-0 flex-1">
@@ -1359,7 +1401,7 @@ function StatusBadge(props: { children: React.ReactNode; tone: "emerald" | "slat
 
 function SharedPeopleBlock(props: { title: string; users: NetworkUserLite[]; emptyText: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 p-3">
+    <div className="rounded-xl p-3">
       <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{props.title}</div>
       {props.users.length ? (
         <div className="mt-2 space-y-2">
@@ -1409,6 +1451,7 @@ function RelationshipDetailModal({
 
   if (!user) return null;
   const canMessage = user.connection_state === "connected";
+  const relationshipSummary = getRelationshipSummary(user, insights);
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/45 backdrop-blur-[1px]" onClick={onClose}>
@@ -1436,6 +1479,17 @@ function RelationshipDetailModal({
           <div className="space-y-4">
           {user.bio ? <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-700">{user.bio}</div> : null}
 
+          <div className="rounded-xl bg-[#effdef] p-3">
+            <div className="text-xs font-semibold uppercase tracking-wide text-emerald-900">Vazba ke mně</div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {relationshipSummary.map((item) => (
+                <span key={item} className="rounded-full bg-white/70 px-2.5 py-1 text-xs font-semibold text-emerald-950">
+                  {item}
+                </span>
+              ))}
+            </div>
+          </div>
+
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
             <MiniStat label="Spojení" value={loading ? "…" : String(insights?.connections_count ?? user.connections_count ?? 0)} />
             <MiniStat label="Sleduje" value={loading ? "…" : String(insights?.following_count ?? user.following_count ?? 0)} />
@@ -1445,14 +1499,14 @@ function RelationshipDetailModal({
           </div>
 
           {user.connection_since ? (
-            <div className="rounded-xl border border-slate-200 p-3">
+            <div className="rounded-xl p-3">
               <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Ve spojení od</div>
               <div className="mt-1 text-sm text-slate-900">{formatDateTime(user.connection_since)}</div>
             </div>
           ) : null}
 
           {user.following_since ? (
-            <div className="rounded-xl border border-slate-200 p-3">
+            <div className="rounded-xl p-3">
               <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Sleduješ od</div>
               <div className="mt-1 text-sm text-slate-900">{formatDateTime(user.following_since)}</div>
             </div>
@@ -1493,7 +1547,7 @@ function RelationshipDetailModal({
             {canMessage ? (
               <Link
                 href={`/messages?user=${user.user_id}`}
-                className="rounded-xl bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                className="rounded-xl bg-[#32CD32] px-3 py-2 text-sm font-medium text-white hover:bg-[#28b828]"
               >
                 Napsat zprávu
               </Link>
@@ -1508,7 +1562,7 @@ function RelationshipDetailModal({
 
 function MiniStat(props: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+    <div className="rounded-xl bg-slate-50 p-3">
       <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{props.label}</div>
       <div className="mt-1 text-sm font-semibold text-slate-900">{props.value}</div>
     </div>

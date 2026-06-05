@@ -1,4 +1,4 @@
-// app/profile/components/UserProfileForm.tsx
+﻿// app/profile/components/UserProfileForm.tsx
 // Popis: Generický formulář pro úpravu uživatelského profilu podle konfiguračního schema.
 
 'use client';
@@ -80,7 +80,7 @@ export const UserProfileForm: React.FC<UserProfileFormProps> = ({
 
       <button
         type="submit"
-        className="mt-2 inline-flex items-center justify-center rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600 transition"
+        className="mt-2 inline-flex items-center justify-center rounded-xl bg-[#32CD32] px-4 py-2 text-sm font-semibold text-white hover:bg-[#32CD32] transition"
       >
         Uložit změny
       </button>
@@ -143,7 +143,7 @@ function renderInput(
                 onClick={() => onToggleMulti(field, opt.value)}
                 className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
                   checked
-                    ? 'bg-emerald-500 text-white border-emerald-500'
+                    ? 'bg-[#32CD32] text-white border-emerald-500'
                     : 'bg-white text-gray-700 border-gray-300 hover:border-emerald-400'
                 }`}
               >
@@ -184,3 +184,4 @@ function renderInput(
       return null;
   }
 }
+

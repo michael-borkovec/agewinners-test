@@ -1,4 +1,4 @@
-/**
+﻿/**
  * File: app/profile/photos/albums/[albumId]/page.tsx
  * Purpose:
  *   Album detail page in profile photos section:
@@ -184,7 +184,7 @@ export default function AlbumPhotosPage() {
         if (cancelled) return;
 
         if (postRowsErr) {
-          setError(postRowsErr.message || "Posty alba se nepodaÅ™ilo naÄÃ­st.");
+          setError(postRowsErr.message || "Posty alba se nepodařilo načíst.");
           setPhotos([]);
           return;
         }
@@ -230,7 +230,7 @@ export default function AlbumPhotosPage() {
         if (cancelled) return;
 
         if (imgsErr) {
-          setError(imgsErr.message || "Fotky alba se nepodaÅ™ilo naÄÃ­st.");
+          setError(imgsErr.message || "Fotky alba se nepodařilo načíst.");
           setPhotos([]);
           return;
         }
@@ -350,7 +350,7 @@ export default function AlbumPhotosPage() {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {sortedPhotos.map((p) => (
-            <div key={p.id} className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div key={p.id} className="overflow-hidden rounded-2xl bg-white shadow-sm">
               <div className="flex h-48 items-center justify-center bg-gray-50">
                 {p.public_url ? (
                   <img
@@ -389,7 +389,7 @@ export default function AlbumPhotosPage() {
                 <div className="pt-1">
                   <button
                     type="button"
-                    onClick={() => void awAlert("Statistiky / edit fotky doplníme v další iteraci.")}
+                    onClick={() => void awAlert("Vývoj / edit fotky doplníme v další iteraci.")}
                     className="text-xs font-semibold text-emerald-700 hover:underline"
                   >
                     Detail / akce…
@@ -417,7 +417,7 @@ function GridSkeleton() {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div key={i} className="overflow-hidden rounded-2xl bg-white shadow-sm">
           <div className="h-48 animate-pulse bg-slate-100" />
           <div className="space-y-2 p-4">
             <div className="h-3 w-3/4 animate-pulse rounded bg-slate-100" />
@@ -429,3 +429,4 @@ function GridSkeleton() {
     </div>
   );
 }
+

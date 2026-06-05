@@ -6,7 +6,7 @@
  * - Login/signup landing page with a conversion-focused hero.
  * - Authenticates users through Supabase Auth.
  * - Redirects successful login to the home feed.
- * - Uses public/landingpage.png as the hero background with a safe fallback.
+ * - Uses public/main_background.jpg as the hero background.
  */
 
 import { useState } from "react";
@@ -98,7 +98,7 @@ export default function LoginPage() {
   return (
     <main
       className="relative min-h-screen overflow-hidden bg-cover bg-center bg-no-repeat text-white"
-      style={{ backgroundImage: "url('/landingpage.png'), url('/main_background.jpg')" }}
+      style={{ backgroundImage: "url('/main_background.jpg')" }}
     >
       <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.65)_0%,rgba(0,0,0,0.4)_50%,rgba(0,0,0,0.15)_100%)]" />
 
@@ -122,7 +122,7 @@ export default function LoginPage() {
 
           <Link
             href="/register"
-            className="inline-flex rounded-lg bg-[#79C94E] px-8 py-4 text-lg font-bold text-white shadow-xl shadow-black/30 transition hover:-translate-y-0.5 hover:bg-[#69b83f] hover:shadow-[#79C94E]/35 focus:outline-none focus:ring-2 focus:ring-[#9ee079] focus:ring-offset-2 focus:ring-offset-black"
+            className="inline-flex rounded-lg bg-[#32CD32] px-8 py-4 text-lg font-bold text-white shadow-xl shadow-black/30 transition hover:-translate-y-0.5 hover:bg-[#28b828] hover:shadow-[#32CD32]/35 focus:outline-none focus:ring-2 focus:ring-[#98f398] focus:ring-offset-2 focus:ring-offset-black"
           >
             Zjistit svůj AW věk
           </Link>
@@ -136,7 +136,7 @@ export default function LoginPage() {
               <label className="block text-sm font-medium text-white/90">
                 E-mail
                 <input
-                  className="mt-2 w-full rounded-lg border border-white/20 bg-white/78 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-500 focus:border-[#79C94E] focus:bg-white focus:ring-2 focus:ring-[#79C94E]/40"
+                  className="mt-2 w-full rounded-lg border border-white/20 bg-white/78 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-500 focus:border-[#32CD32] focus:bg-white focus:ring-2 focus:ring-[#32CD32]/40"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   type="email"
@@ -147,7 +147,7 @@ export default function LoginPage() {
               <label className="block text-sm font-medium text-white/90">
                 Heslo
                 <input
-                  className="mt-2 w-full rounded-lg border border-white/20 bg-white/78 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-500 focus:border-[#79C94E] focus:bg-white focus:ring-2 focus:ring-[#79C94E]/40"
+                  className="mt-2 w-full rounded-lg border border-white/20 bg-white/78 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-500 focus:border-[#32CD32] focus:bg-white focus:ring-2 focus:ring-[#32CD32]/40"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   type="password"
@@ -162,7 +162,7 @@ export default function LoginPage() {
                   {failedAttempts >= 4 ? (
                     <Link
                       href="/forgot-password"
-                      className="inline-flex rounded-lg bg-white/95 px-4 py-2 text-sm font-bold text-slate-950 transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#9ee079]"
+                      className="inline-flex rounded-lg bg-white/95 px-4 py-2 text-sm font-bold text-slate-950 transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#98f398]"
                     >
                       Obnovit heslo
                     </Link>
@@ -173,20 +173,20 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full rounded-lg bg-[#79C94E] py-3 text-base font-bold text-white shadow-lg shadow-black/25 transition hover:-translate-y-0.5 hover:bg-[#69b83f] focus:outline-none focus:ring-2 focus:ring-[#9ee079] focus:ring-offset-2 focus:ring-offset-black disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
+                className="w-full rounded-lg bg-[#32CD32] py-3 text-base font-bold text-white shadow-lg shadow-black/25 transition hover:-translate-y-0.5 hover:bg-[#28b828] focus:outline-none focus:ring-2 focus:ring-[#98f398] focus:ring-offset-2 focus:ring-offset-black disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
               >
                 {loading ? "Přihlašuji..." : "Přihlásit se"}
               </button>
 
               <p className="text-center text-sm text-white/88">
                 Nemáš účet?{" "}
-                <Link href="/register" className="font-bold text-[#9ee079] underline underline-offset-4 hover:text-white">
-                  Vytvořit profil zdarma
+                <Link href="/register" className="font-bold text-[#98f398] underline underline-offset-4 hover:text-white">
+                  Vytvořit profil
                 </Link>
               </p>
 
               <p className="text-center text-sm text-white/82">
-                <Link href="/forgot-password" className="font-semibold text-white/90 underline underline-offset-4 hover:text-[#9ee079]">
+                <Link href="/forgot-password" className="font-semibold text-white/90 underline underline-offset-4 hover:text-[#98f398]">
                   Klikni zde pro obnovení hesla
                 </Link>
               </p>

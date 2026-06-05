@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 /**
  * File: app/settings/privacy/page.tsx
@@ -237,7 +237,7 @@ export default function PrivacySettingsPage() {
         </div>
 
         {/* NEW: Tipování věku */}
-        <div className="rounded-2xl border border-gray-200 p-4 space-y-3">
+        <div className="rounded-2xl p-4 space-y-3">
           <div>
             <div className="text-sm font-semibold text-gray-900">Tipování věku</div>
             <div className="mt-1 text-xs text-gray-600">
@@ -286,3 +286,4 @@ export default function PrivacySettingsPage() {
     </main>
   );
 }
+

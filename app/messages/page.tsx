@@ -1,4 +1,4 @@
-/**
+﻿/**
  * File purpose
  * - Render the messaging page with a conversation detail panel.
  * Main responsibilities
@@ -19,9 +19,11 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Avatar from "@/components/avatar";
-import { PageSectionTitle } from "@/components/PageSectionTitle";
 import AwButton from "@/components/AwButton";
 import CloseButton from "@/components/CloseButton";
+import HelpIconButton from "@/components/HelpIconButton";
+import SoftSectionIntro from "@/components/SoftSectionIntro";
+import SoftEmptyState from "@/components/SoftEmptyState";
 import { awAlert } from "@/components/AwDialog";
 import { useAuth } from "@/components/auth/AuthContext";
 import { BASIC_EMOJIS, QUICK_REACTIONS, normalizeTypedEmoji } from "@/lib/utils/emoji";
@@ -191,6 +193,7 @@ export default function MessagesPage() {
   const [sending, setSending] = useState(false);
   const [draft, setDraft] = useState("");
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const [emojiActivityTick, setEmojiActivityTick] = useState(0);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [replyTarget, setReplyTarget] = useState<ThreadMessage | null>(null);
@@ -479,9 +482,34 @@ export default function MessagesPage() {
   }
 
   function insertEmoji(emoji: string) {
-    setDraft((current) => `${current}${emoji}`);
-    setEmojiOpen(false);
+    setEmojiActivityTick((current) => current + 1);
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      setDraft((current) => `${current}${emoji}`);
+      return;
+    }
+
+    const start = textarea.selectionStart ?? draft.length;
+    const end = textarea.selectionEnd ?? draft.length;
+    const nextDraft = `${draft.slice(0, start)}${emoji}${draft.slice(end)}`;
+    setDraft(nextDraft);
+
+    window.requestAnimationFrame(() => {
+      textarea.focus();
+      const nextCursor = start + emoji.length;
+      textarea.setSelectionRange(nextCursor, nextCursor);
+    });
   }
+
+  useEffect(() => {
+    if (!emojiOpen) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setEmojiOpen(false);
+    }, 10000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [emojiOpen, emojiActivityTick]);
 
   async function handleToggleStar() {
     if (!selectedThread) return;
@@ -535,40 +563,49 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="mx-auto w-full p-4">
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 px-5 py-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <PageSectionTitle
-                title="Zprávy"
-                iconPath="/ui/Menu-Zpravy.ico"
-                sizeClassName="text-[1.95rem]"
-              />
-              <p className="mt-1 text-sm text-slate-600">
-                Ve spojení si mužete psát bez omezení. Mimo spojení se zprávy objeví jen u žádosti o spojení nebo jejího zamítnutí.
-              </p>
+    <div className="mx-auto w-full px-4 pb-4">
+      <div className="rounded-2xl bg-white">
+        <div className="px-5 py-4">
+          <div>
+            <SoftSectionIntro
+              title="Zprávy"
+              iconPath="/ui/Menu-Zpravy.ico"
+              sizeClassName="text-[1.95rem]"
+              actions={
+                <>
+                  <HelpIconButton
+                    helpText="Zprávy jsou soukromý prostor pro přímou komunikaci v AW."
+                    helpKey="messages"
+                    modalTitle="Nápověda - Zprávy"
+                    className="p-2"
+                    iconClassName="h-5 w-5"
+                  />
+                  <AwButton variant="primary" onClick={() => setComposerOpen(true)}>
+                    Nová zpráva
+                  </AwButton>
+                </>
+              }
+            />
               {messagesSystemNotice ? (
                 <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
                   {messagesSystemNotice}
                 </div>
               ) : null}
-            </div>
-
-            <AwButton variant="primary" onClick={() => setComposerOpen(true)}>
-              Nová zpráva
-            </AwButton>
           </div>
         </div>
 
         <section className="flex min-h-[620px] flex-col">
           {!selectedThread ? (
-            <div className="flex flex-1 items-center justify-center p-6 text-sm text-slate-600">
-              {loading ? "Nacítám konverzace..." : "Vyber konverzaci vlevo nebo založ novou zprávu."}
+            <div className="flex flex-1 items-start p-5">
+              {loading ? (
+                <div className="text-sm text-slate-600">Načítám konverzace...</div>
+              ) : (
+                <SoftEmptyState title="Zatím není vybraná žádná konverzace" text="Vyber vlákno vlevo, nebo založ novou zprávu a začni soukromý rozhovor." />
+              )}
             </div>
           ) : (
             <>
-              <div className="border-b border-slate-200 px-5 py-4">
+              <div className="px-5 py-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-3">
                     <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-200">
@@ -616,7 +653,7 @@ export default function MessagesPage() {
                       Akce
                     </button>
                     {actionsOpen ? (
-                      <div className="absolute right-0 top-full z-20 mt-2 w-60 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+                      <div className="absolute right-0 top-full z-20 mt-2 w-60 rounded-2xl bg-white p-2 shadow-xl">
                         <button type="button" onClick={() => void handleToggleStar()} className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-slate-50">
                           {selectedThread.isStarred ? "Odebrat hvezdicku" : "Pridat hvezdicku"}
                         </button>
@@ -652,7 +689,7 @@ export default function MessagesPage() {
                 {messagesLoading ? (
                   <div className="text-sm text-slate-600">Nacítám zprávy...</div>
                 ) : messages.length === 0 ? (
-                  <div className="text-sm text-slate-600">Ve vlákne zatím nejsou žádné zprávy.</div>
+                  <SoftEmptyState title="Ve vlákně zatím nejsou žádné zprávy" text="Až odešleš první zprávu, objeví se tady začátek celé konverzace." />
                 ) : (
                   messages.map((message) => {
                     const isMine = message.senderUserId === userId;
@@ -693,12 +730,12 @@ export default function MessagesPage() {
                             <div
                               className={`relative px-4 py-3 text-sm shadow-sm ${
                                 isMine
-                                  ? "rounded-2xl bg-emerald-600 text-white"
+                                  ? "rounded-2xl bg-[#32CD32] text-white"
                                   : "rounded-2xl bg-slate-100 text-slate-900"
                               }`}
                             >
                               {replyPreviewBody ? (
-                                <div className={`mb-2 rounded-xl px-3 py-2 text-xs ${isMine ? "bg-emerald-500/60 text-emerald-50" : "bg-white text-slate-600"}`}>
+                                <div className={`mb-2 rounded-xl px-3 py-2 text-xs ${isMine ? "bg-[#32CD32]/60 text-emerald-50" : "bg-white text-slate-600"}`}>
                                   <div className={`border-l-4 pl-3 ${isMine ? "border-emerald-100" : "border-sky-500"}`}>
                                     <div className={`font-semibold ${isMine ? "text-emerald-50" : "text-sky-700"}`}>
                                       {replyPreviewSenderName}
@@ -715,7 +752,7 @@ export default function MessagesPage() {
                                     key={`${message.id}-${reaction.emoji}`}
                                     type="button"
                                     onClick={() => void handleReaction(message.id, reaction.emoji)}
-                                    className={`rounded-full border px-2 py-0.5 text-[11px] leading-none ${reaction.reactedByMe ? "border-emerald-300 bg-emerald-50 text-emerald-700" : isMine ? "border-emerald-200/40 bg-emerald-500/20 text-emerald-50" : "border-slate-200 bg-white text-slate-700"}`}
+                                    className={`rounded-full border px-2 py-0.5 text-[11px] leading-none ${reaction.reactedByMe ? "border-emerald-300 bg-emerald-50 text-emerald-700" : isMine ? "border-emerald-200/40 bg-[#32CD32]/20 text-emerald-50" : "border-slate-200 bg-white text-slate-700"}`}
                                   >
                                     {reaction.emoji} {reaction.count}
                                   </button>
@@ -770,7 +807,7 @@ export default function MessagesPage() {
                               </button>
 
                               {reactionPickerForMessageId === message.id ? (
-                                <div className={`absolute top-full z-10 mt-2 grid w-[240px] grid-cols-5 gap-1.5 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-lg ${isMine ? "right-0" : "left-0"}`}>
+                                <div className={`absolute top-full z-10 mt-2 grid w-[240px] grid-cols-5 gap-1.5 rounded-2xl bg-white p-2.5 shadow-lg ${isMine ? "right-0" : "left-0"}`}>
                                   {BASIC_EMOJIS.filter((emoji) => !QUICK_REACTIONS.includes(emoji)).map((emoji) => (
                                     <button
                                       key={`${message.id}-${emoji}-more`}
@@ -792,11 +829,11 @@ export default function MessagesPage() {
                 )}
               </div>
 
-              <div className="border-t border-slate-200 bg-slate-50 px-5 py-4">
+              <div className="bg-slate-50 px-5 py-4">
                 {selectedThread.canReply ? (
                   <div className="flex flex-col gap-3">
                     {replyTarget ? (
-                      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                      <div className="overflow-hidden rounded-2xl bg-white">
                         <div className="flex items-start justify-between gap-3 px-4 py-3">
                           <div className="min-w-0 flex-1 border-l-4 border-sky-500 pl-3">
                             <div className="text-sm font-semibold text-sky-700">
@@ -818,61 +855,66 @@ export default function MessagesPage() {
                     ) : null}
 
                     <div ref={composerRef} className="relative">
-                      {emojiOpen ? (
-                        <div className="absolute bottom-full left-0 mb-2 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-lg">
-                          <div className="grid w-[240px] grid-cols-5 gap-1.5">
-                            {BASIC_EMOJIS.filter((emoji) => !QUICK_REACTIONS.includes(emoji)).map((emoji) => (
-                              <button
-                                key={emoji}
-                                type="button"
-                                onClick={() => insertEmoji(emoji)}
-                                className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-base hover:bg-slate-50"
-                              >
-                                {emoji}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      ) : null}
-
                       <textarea
                         ref={textareaRef}
                         value={draft}
                         onChange={(e) => setDraft(normalizeTypedEmoji(e.target.value))}
                         rows={3}
                         placeholder="Napiš zprávu..."
-                        className="min-h-[84px] w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                        className="min-h-[84px] w-full rounded-2xl border border-slate-300 bg-white py-3 pl-12 pr-4 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
                       />
-                    </div>
 
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
-                        <div className="relative flex flex-wrap gap-2">
-                          {QUICK_REACTIONS.map((emoji) => (
+                      <button
+                        type="button"
+                        aria-label={emojiOpen ? "Sbalit emoji" : "Zobrazit emoji"}
+                        title={emojiOpen ? "Sbalit emoji" : "Zobrazit emoji"}
+                        aria-expanded={emojiOpen}
+                        onClick={() => {
+                          setEmojiOpen((current) => !current);
+                          textareaRef.current?.focus();
+                        }}
+                        className="absolute left-3 top-3 flex h-7 w-7 items-center justify-center rounded-md text-slate-950 hover:bg-slate-100 disabled:opacity-60"
+                        disabled={sending}
+                      >
+                        <svg
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                          className="h-6 w-6"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <rect x="3.5" y="3.5" width="17" height="17" rx="4.5" />
+                          <path d="M8.5 10h.01" />
+                          <path d="M14.5 10h.01" />
+                          <path d="M8.4 14.2c1 .95 2.2 1.45 3.6 1.45s2.6-.5 3.6-1.45" />
+                          <path d="M18 5.2v4" />
+                          <path d="M16 7.2h4" />
+                        </svg>
+                      </button>
+
+                      {emojiOpen ? (
+                        <div className="absolute left-0 top-full z-20 mt-2 grid w-full grid-cols-[repeat(auto-fill,minmax(36px,1fr))] gap-1.5 rounded-2xl bg-white p-2.5 shadow-lg sm:max-w-[520px]">
+                          {BASIC_EMOJIS.map((emoji) => (
                             <button
-                              key={`${emoji}-composer-quick`}
+                              key={`${emoji}-composer`}
                               type="button"
                               onClick={() => insertEmoji(emoji)}
-                              className="flex h-9 min-w-9 items-center justify-center rounded-full border border-slate-200 bg-white px-2.5 text-base hover:bg-slate-50"
+                              className="flex h-9 min-w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-base hover:bg-slate-50 disabled:opacity-60"
+                              disabled={sending}
+                              aria-label={`Vložit emoji ${emoji}`}
                             >
                               {emoji}
                             </button>
                           ))}
-
-                          <button
-                            type="button"
-                            aria-label="další emoji"
-                            title="další emoji"
-                            onClick={() => setEmojiOpen((current) => !current)}
-                            className="flex h-9 min-w-9 items-center justify-center rounded-full border border-slate-900 bg-white px-2.5 text-base text-slate-900 hover:bg-slate-100"
-                          >
-                            <span className="flex items-start gap-0.5 leading-none">
-                              <span className="text-[27px]">{"\u263A"}</span>
-                              <span className="text-xs font-bold">+</span>
-                            </span>
-                          </button>
                         </div>
-                      </div>
+                      ) : null}
+                    </div>
+
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div />
 
                       <AwButton variant="primary" onClick={() => void handleSend()} disabled={sending || !draft.trim()} className="px-5 py-3">
                         {sending ? "Odesílám..." : "Odeslat"}
@@ -880,7 +922,7 @@ export default function MessagesPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+                  <div className="rounded-2xl bg-white px-4 py-3 text-sm text-slate-600">
                     {selectedThread.hasBlocking
                       ? "Blokovaná konverzace je jen pro ctení."
                       : "Toto vlákno je jen informacní. Odpovedi jsou dostupné až po prijetí spojení."}
@@ -970,3 +1012,5 @@ export default function MessagesPage() {
     </div>
   );
 }
+
+

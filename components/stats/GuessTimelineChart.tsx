@@ -49,7 +49,7 @@ export default function GuessTimelineChart({ points }: { points: GuessTimelinePo
   // Empty state
   if (!sorted || sorted.length === 0) {
     return (
-      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="rounded-2xl bg-white p-5">
         <div className="text-sm font-semibold text-gray-900">Vývoj tipů v čase</div>
         <div className="mt-2 text-sm text-gray-600">Zatím žádná data pro graf.</div>
       </div>
@@ -115,7 +115,7 @@ export default function GuessTimelineChart({ points }: { points: GuessTimelinePo
   const labelX = (ms: number) => (useDailyTicks ? fmtDayCZ(ms) : fmtMonthCZ(ms));
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+    <div className="rounded-2xl bg-white p-5">
       <div className="mb-2 flex items-center justify-between">
         <div className="text-sm font-semibold text-gray-900">Vývoj tipů v čase</div>
         <div className="text-xs text-gray-500">{useDailyTicks ? "osa X: dny" : "osa X: měsíce"}</div>

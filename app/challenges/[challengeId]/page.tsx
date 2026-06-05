@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Public or owner-visible AW challenge detail
  * - Shows challenge card from aw_challenges
  * - Uses existing stored AW score values without changing AW calculation
@@ -107,7 +107,7 @@ export default function ChallengeDetailPage() {
           <InfoBox label="Viditelnost" value={visibilityLabel(challenge.visibility)} />
         </div>
 
-        <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm font-semibold text-emerald-950">
+        <div className="mt-4 rounded-2xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-950">
           {progressText}
         </div>
 
@@ -116,7 +116,7 @@ export default function ChallengeDetailPage() {
         ) : null}
 
         {showPrivateGoal ? (
-          <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-700">
+          <div className="mt-4 rounded-2xl bg-white p-4 text-sm leading-6 text-slate-700">
             <span className="font-semibold text-slate-900">Zveřejněný osobní cíl:</span> {challenge.private_goal}
           </div>
         ) : null}
@@ -139,8 +139,8 @@ export default function ChallengeDetailPage() {
           První verze ukazuje uložený start, cíl a termín. Další krok napojí konečnou hodnotu AW skóre,
           počet zařazených fotek a vývoj po dnech.
         </p>
-        <Link href="/stats?section=challenges" className="mt-4 inline-flex rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
-          Otevřít statistiky výzev
+        <Link href="/stats?section=challenges" className="mt-4 inline-flex rounded-xl bg-[#32CD32] px-4 py-2 text-sm font-semibold text-white hover:bg-[#28b828]">
+          Otevřít vývoj výzev
         </Link>
       </div>
     </div>
@@ -149,9 +149,11 @@ export default function ChallengeDetailPage() {
 
 function InfoBox({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+    <div className="rounded-2xl bg-slate-50 p-4">
       <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
       <div className="mt-1 text-sm font-bold text-slate-900">{value}</div>
     </div>
   );
 }
+
+

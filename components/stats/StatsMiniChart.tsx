@@ -20,7 +20,9 @@ type StatsMiniChartProps = {
   title: string;
   description?: string;
   helpText?: string;
+  helpKey?: string;
   helpTitle?: string;
+  helpBreadcrumbs?: Array<{ label: string; href?: string }>;
   points: StatsMiniChartPoint[];
   loading?: boolean;
   error?: string | null;
@@ -51,7 +53,9 @@ export default function StatsMiniChart({
   title,
   description,
   helpText,
+  helpKey,
   helpTitle,
+  helpBreadcrumbs,
   points,
   loading = false,
   error = null,
@@ -69,7 +73,7 @@ export default function StatsMiniChart({
   const resolvedHelpText = [description, helpText].filter(Boolean).join("\n\n");
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="rounded-2xl bg-white p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-sm font-semibold text-slate-900">{title}</div>
@@ -77,7 +81,9 @@ export default function StatsMiniChart({
         {resolvedHelpText ? (
           <HelpIconButton
             helpText={resolvedHelpText}
+            helpKey={helpKey}
             modalTitle={helpTitle ?? `Nápověda - ${title}`}
+            breadcrumbs={helpBreadcrumbs}
             className="shrink-0 p-1"
             iconClassName="h-4 w-4"
           />

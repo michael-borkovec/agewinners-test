@@ -1,4 +1,4 @@
-/**
+﻿/**
  * File: app/profile/photos/[imageId]/page.tsx
  * Description:
  *   Statistiky fotky:
@@ -54,7 +54,7 @@ function computeAwScoreNormPct(realAge: number, awAgeImage: number | null): numb
 function ScoreBoxForPhoto({ awScoreNormPct }: { awScoreNormPct: number | null }) {
   if (awScoreNormPct == null || !Number.isFinite(awScoreNormPct)) {
     return (
-      <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 text-gray-900">
+      <div className="rounded-2xl bg-gray-50 p-4 text-gray-900">
         <p className="text-sm font-semibold">AW skóre zatím není k dispozici (potřebujeme více tipů).</p>
       </div>
     );
@@ -64,7 +64,7 @@ function ScoreBoxForPhoto({ awScoreNormPct }: { awScoreNormPct: number | null })
 
   if (abs < 0.0001) {
     return (
-      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
+      <div className="rounded-2xl bg-emerald-50 p-4 text-emerald-900">
         <p className="text-sm font-semibold">Skvělé, AW skóre je prakticky 0 % (tipují tě velmi přesně).</p>
       </div>
     );
@@ -82,7 +82,7 @@ function ScoreBoxForPhoto({ awScoreNormPct }: { awScoreNormPct: number | null })
   }
 
   return (
-    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
+    <div className="rounded-2xl bg-emerald-50 p-4 text-emerald-900">
       <p className="text-sm font-semibold">
         Gratuluji, AW skóre této fotky je <span className="font-bold tabular-nums">{abs.toFixed(1)} %</span> pod tvým
         skutečným věkem (AW výsledek tě posouvá k mladšímu dojmu).
@@ -133,7 +133,7 @@ function GuessTimelineChartInline({
 }) {
   if (!points.length) {
     return (
-      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="rounded-2xl bg-white p-4 shadow-sm">
         <div className="text-sm font-semibold text-gray-900">Graf tipů v čase</div>
         <div className="mt-2 text-sm text-gray-600">Zatím žádné tipy.</div>
       </div>
@@ -173,7 +173,7 @@ function GuessTimelineChartInline({
     .join(" ");
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+    <div className="rounded-2xl bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between gap-3">
         <div className="text-sm font-semibold text-gray-900">Graf tipů v čase</div>
         <div className="text-xs text-gray-500">{points.length} bodů</div>
@@ -424,7 +424,7 @@ export default function PhotoStatsPage() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Statistiky fotky</h1>
+          <h1 className="text-xl font-bold text-gray-900">Vývoj fotky</h1>
           <p className="mt-1 text-sm text-gray-600">Co lidé tipují vs. AW výsledek (deltaNorm váženě).</p>
         </div>
 
@@ -445,7 +445,7 @@ export default function PhotoStatsPage() {
       ) : !image ? null : (
         <>
           {/* Image preview */}
-          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+          <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
             <div className="flex max-h-[560px] items-center justify-center bg-gray-50">
               {image.public_url ? (
                 <img
@@ -488,7 +488,7 @@ export default function PhotoStatsPage() {
           <GuessTimelineChartInline points={timeline} selectedId={selectedGuessId} onSelect={handleSelectPoint} />
 
           {/* Count + list */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="rounded-2xl bg-white p-4 shadow-sm">
             <div className="mb-2 flex items-center justify-between gap-3">
               <div className="text-sm font-semibold text-gray-900">Tipy (nejnovější první)</div>
               <div className="text-xs text-gray-500">{guesses.length} tipů</div>
@@ -541,3 +541,4 @@ export default function PhotoStatsPage() {
     </div>
   );
 }
+

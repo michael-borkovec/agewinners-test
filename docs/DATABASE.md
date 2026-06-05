@@ -250,6 +250,66 @@ Security:
 
 ---
 
+\## referral\_codes
+
+Stores each user's short public AW invite slug.
+
+Primary key:
+
+- `user_id`
+
+Important fields:
+
+| column | type | description |
+|------|------|-------------|
+| user_id | uuid | owner of the invite code |
+| slug | text | short public code used in `/ref/{slug}`, unique, 6-8 lowercase letters |
+| created_at | timestamptz | creation time |
+
+Security:
+
+- RLS enabled
+- authenticated users can read only their own slug
+- public links do not expose email, auth id, or display name
+
+---
+
+\## referrals
+
+Stores AW invite usage and Power score bonus windows.
+
+Primary key:
+
+- `id` (uuid)
+
+Important fields:
+
+| column | type | description |
+|------|------|-------------|
+| referrer_user_id | uuid | user who owns the invite link |
+| referred_user_id | uuid | user who registered through the invite link |
+| referral_slug | text | slug used at registration time |
+| registered_at | timestamptz | referred user's registration time |
+| activated_at | timestamptz | set when referred user has at least 1 image and 10 age guesses |
+| bonus_expires_at | timestamptz | 30 days after activation |
+
+Rules:
+
+- one referred user can have only one referrer
+- self-referral is blocked
+- bonus = 10% of referred user's latest Power score
+- only active, non-expired referrals count
+- maximum 10 active referrals with highest referred Power score count into the bonus
+- referred user's own Power score is not reduced
+
+Security:
+
+- RLS enabled
+- users can select rows where they are referrer or referred user
+- writes are handled by backend functions/triggers
+
+---
+
 \## aw\_challenges
 
 Stores user-created AW challenges. A challenge stores the AW score snapshot from the start of the challenge and the target AW score for later comparison. It does not define or change AW score calculation rules.
@@ -402,6 +462,42 @@ Important fields:
 
 | personalization\_ads\_consent\_at | timestamptz | timestamp when the consent was granted |
 
+| website\_url | text | optional profile contact link |
+
+| website\_url\_hidden | boolean | hides website from profile contact preview |
+
+| public\_email | text | optional public contact email for collaborations |
+
+| public\_email\_hidden | boolean | hides public email; defaults to hidden |
+
+| instagram\_url | text | optional Instagram profile link |
+
+| instagram\_url\_hidden | boolean | hides Instagram link |
+
+| facebook\_url | text | optional Facebook profile/page link |
+
+| facebook\_url\_hidden | boolean | hides Facebook link |
+
+| tiktok\_url | text | optional TikTok profile link |
+
+| tiktok\_url\_hidden | boolean | hides TikTok link |
+
+| youtube\_url | text | optional YouTube channel link |
+
+| youtube\_url\_hidden | boolean | hides YouTube link |
+
+| linkedin\_url | text | optional LinkedIn profile link |
+
+| linkedin\_url\_hidden | boolean | hides LinkedIn link |
+
+| x\_url | text | optional X profile link |
+
+| x\_url\_hidden | boolean | hides X link |
+
+| contact\_note | text | optional contact/collaboration note |
+
+| contact\_note\_hidden | boolean | hides contact note |
+
 
 
 Used by:
@@ -547,3 +643,58 @@ Album model notes:
 \- empty album is a valid state
 
 \- empty post is not a valid state and should be removed
+
+---
+
+\## image\_aw\_directions
+
+Stores optional AW direction metadata for photos. A photo can have zero, one, or more AW directions.
+
+Primary key:
+
+\- `image_id` + `direction_key`
+
+Important fields:
+
+| column | type | description |
+|------|------|-------------|
+| image_id | bigint | related `images.id` |
+| direction_key | text | stable direction key, currently one of `sport_movement`, `cosmetics_style`, `nutrition_lifestyle`, `supplements_superfoods`, `recovery_energy`, `aesthetic_care` |
+| created_at | timestamptz | creation time |
+
+Usage:
+
+\- upload/edit photo UI
+\- suggested direction-specific tags
+\- future filtering, statistics, and AW direction comparisons
+
+Security:
+
+\- RLS enabled
+\- authenticated users can read direction rows for existing images
+\- image owner can insert/delete directions for own images
+\- privacy and feed visibility still depend on the underlying post/image visibility rules
+
+---
+
+\## RPC: get\_gamified\_feed\_image\_batch
+
+Returns one feed batch for the authenticated viewer.
+
+Purpose:
+
+\- selects eligible feed photos for guessing
+
+\- excludes the viewer's own photos
+
+\- excludes photos the viewer already guessed
+
+\- excludes moderation/admin/suspension-hidden content
+
+\- respects backend visibility rules for `images.visibility` plus effective post/album visibility
+
+\- uses `post_albums` for active album context and does not use legacy `posts.album_id`
+
+\- computes `feed_score` from contribution, Power score, under-tipped, recency, and diversity signals
+
+\- returns up to 10 images as 7 preferred + 3 random candidates, with max 2 photos from the same author

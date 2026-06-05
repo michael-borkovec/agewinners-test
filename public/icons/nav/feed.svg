@@ -1,0 +1,10 @@
+<svg viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g-feed" x1="3" y1="23" x2="25" y2="5" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#101215"/>
+      <stop offset="0.58" stop-color="#173A2A"/>
+      <stop offset="1" stop-color="#9BE79B"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#g-feed)" d="M24.5 12.15 20.9 9.2V5.95a1.2 1.2 0 0 0-2.4 0v1.28l-3.73-3.06a1.2 1.2 0 0 0-1.54 0L3.5 12.15a1.2 1.2 0 1 0 1.52 1.86l.58-.48v8.62A2.85 2.85 0 0 0 8.45 25h11.1a2.85 2.85 0 0 0 2.85-2.85v-8.62l.58.48a1.2 1.2 0 1 0 1.52-1.86ZM15.7 22.6h-3.4v-5.2h3.4v5.2Zm4.3-.45a.45.45 0 0 1-.45.45h-1.45v-6.4a1.2 1.2 0 0 0-1.2-1.2H11.1a1.2 1.2 0 0 0-1.2 1.2v6.4H8.45a.45.45 0 0 1-.45-.45V11.56L14 6.64l6 4.92v10.59Z"/>
+</svg>

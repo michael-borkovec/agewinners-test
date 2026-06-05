@@ -16,7 +16,7 @@
  */
 
 import { supabase } from "@/lib/supabaseClient";
-import type { AgeRevealMode, ContentVisibility, DbUserProfile } from "@/types/db";
+import type { AgeRevealMode, ContentVisibility, DbUserProfile, ProfileGroupVisibility } from "@/types/db";
 
 export type ApiResult<T> = {
   data: T | null;
@@ -346,6 +346,14 @@ export async function updateMyPrivacySettings(payload: {
   notifyPhotoCommented?: boolean;
   anonymousGuessesDefault?: boolean;
   wellbeingDailyEntryVisibilityDefault?: ContentVisibility;
+  socialLinksVisibility?: ProfileGroupVisibility;
+  profileAgeVisibility?: ProfileGroupVisibility;
+  profileOccupationVisibility?: ProfileGroupVisibility;
+  profileEducationVisibility?: ProfileGroupVisibility;
+  profileLanguagesVisibility?: ProfileGroupVisibility;
+  profileRelationshipVisibility?: ProfileGroupVisibility;
+  profileMotivationVisibility?: ProfileGroupVisibility;
+  profileBodyVisibility?: ProfileGroupVisibility;
 }): Promise<ApiResult<null>> {
   const auth = await getAuthenticatedUserId();
   if (!auth.data) {
@@ -402,6 +410,50 @@ export async function updateMyPrivacySettings(payload: {
   }
   if (payload.wellbeingDailyEntryVisibilityDefault !== undefined) {
     update.wellbeing_daily_entry_visibility_default = payload.wellbeingDailyEntryVisibilityDefault;
+  }
+  if (payload.socialLinksVisibility !== undefined) {
+    update.social_links_visibility = payload.socialLinksVisibility;
+    const hidden = payload.socialLinksVisibility === "private";
+    update.instagram_url_hidden = hidden;
+    update.facebook_url_hidden = hidden;
+    update.tiktok_url_hidden = hidden;
+    update.youtube_url_hidden = hidden;
+    update.linkedin_url_hidden = hidden;
+    update.x_url_hidden = hidden;
+  }
+  if (payload.profileAgeVisibility !== undefined) {
+    update.profile_age_visibility = payload.profileAgeVisibility;
+    update.allow_age_visible = payload.profileAgeVisibility !== "private";
+  }
+  if (payload.profileOccupationVisibility !== undefined) {
+    update.profile_occupation_visibility = payload.profileOccupationVisibility;
+    update.occupation_hidden = payload.profileOccupationVisibility === "private";
+  }
+  if (payload.profileEducationVisibility !== undefined) {
+    update.profile_education_visibility = payload.profileEducationVisibility;
+    const hidden = payload.profileEducationVisibility === "private";
+    update.is_student_hidden = hidden;
+    update.education_level_hidden = hidden;
+  }
+  if (payload.profileLanguagesVisibility !== undefined) {
+    update.profile_languages_visibility = payload.profileLanguagesVisibility;
+    const hidden = payload.profileLanguagesVisibility === "private";
+    update.native_languages_hidden = hidden;
+    update.other_languages_hidden = hidden;
+  }
+  if (payload.profileRelationshipVisibility !== undefined) {
+    update.profile_relationship_visibility = payload.profileRelationshipVisibility;
+    update.relationship_status_hidden = payload.profileRelationshipVisibility === "private";
+  }
+  if (payload.profileMotivationVisibility !== undefined) {
+    update.profile_motivation_visibility = payload.profileMotivationVisibility;
+    update.motivation_text_hidden = payload.profileMotivationVisibility === "private";
+  }
+  if (payload.profileBodyVisibility !== undefined) {
+    update.profile_body_visibility = payload.profileBodyVisibility;
+    const hidden = payload.profileBodyVisibility === "private";
+    update.height_cm_hidden = hidden;
+    update.weight_kg_hidden = hidden;
   }
 
   const { error } = await supabase.from("user_profiles").update(update).eq("user_id", userId);

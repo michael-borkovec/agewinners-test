@@ -14,9 +14,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PostCard } from "@/components/PostCard";
 import type { UiPost } from "@/types/ui";
 import { createAgeGuess } from "@/lib/api/ageGuesses";
-import { supabase } from "@/lib/supabaseClient";
 import { getFeedPosts, hideFeedImage, PHOTO_TAG_LABELS, type PredefinedPhotoTag, unhideFeedImage } from "@/lib/api/posts";
 import { SectionHeaderFilter, type FilterOption } from "@/components/SectionHeaderFilter";
+import { useAuth } from "@/components/auth/AuthContext";
 
 const ALL_TAGS = Object.keys(PHOTO_TAG_LABELS) as PredefinedPhotoTag[];
 const FEED_HIDDEN_MODE_OPTIONS: FilterOption[] = [
@@ -24,12 +24,12 @@ const FEED_HIDDEN_MODE_OPTIONS: FilterOption[] = [
   { key: "include", label: "Zobrazit vše (i skryté fotky)" },
   { key: "only", label: "Zobrazit pouze skryté fotky" },
 ];
+const FEED_BATCH_SIZE = 10;
 const FEED_REFRESH_AFTER_GUESSES = 7;
 
 export default function FeedPage() {
-  const [authLoading, setAuthLoading] = useState(true);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [isPrivilegedViewer, setIsPrivilegedViewer] = useState(false);
+  const { userId: currentUserId, isLoggedIn, isPrivilegedViewer } = useAuth();
+  const authLoading = !isLoggedIn && !currentUserId;
   const [filterTags, setFilterTags] = useState<PredefinedPhotoTag[]>([]);
   const [hiddenMode, setHiddenMode] = useState<"exclude" | "include" | "only">("exclude");
   const filterOptions = useMemo(() => ALL_TAGS.map((tag) => ({ key: tag, label: PHOTO_TAG_LABELS[tag] })), []);
@@ -58,8 +58,9 @@ export default function FeedPage() {
     try {
       const data = await getFeedPosts({
         currentUserId,
+        isPrivilegedViewer,
         categories: filterTags.length === 0 ? [] : filterTags,
-        limit: 30,
+        limit: FEED_BATCH_SIZE,
         offset: 0,
         excludeFullyGuessed: true,
         hiddenMode,
@@ -87,87 +88,12 @@ export default function FeedPage() {
     } finally {
       setLoading(false);
     }
-  }, [authLoading, clearAllFeedTimers, currentUserId, filterTags, hiddenMode]);
+  }, [authLoading, clearAllFeedTimers, currentUserId, filterTags, hiddenMode, isPrivilegedViewer]);
 
   const handleManualRefresh = useCallback(async () => {
     scrollToTopAfterLoadRef.current = true;
     await loadFeed();
   }, [loadFeed]);
-
-  useEffect(() => {
-    let alive = true;
-
-    async function loadViewerPrivilege(uid: string) {
-      try {
-        const { data: prof, error } = await supabase
-          .from("user_profiles")
-          .select("super_user, role")
-          .eq("user_id", uid)
-          .maybeSingle();
-
-        if (!alive) return;
-        if (!error && prof) {
-          setIsPrivilegedViewer(
-            Boolean((prof as { super_user?: boolean | null; role?: string | null }).super_user) ||
-              (prof as { role?: string | null }).role === "moderator" ||
-              (prof as { role?: string | null }).role === "admin"
-          );
-        } else {
-          setIsPrivilegedViewer(false);
-        }
-      } catch {
-        if (!alive) return;
-        setIsPrivilegedViewer(false);
-      }
-    }
-
-    async function loadSessionOnly() {
-      try {
-        const { data } = await supabase.auth.getSession();
-        const uid = data?.session?.user?.id ?? null;
-        if (!alive) return;
-
-        setCurrentUserId(uid);
-        setAuthLoading(false);
-
-        if (uid) void loadViewerPrivilege(uid);
-        else setIsPrivilegedViewer(false);
-      } catch {
-        if (!alive) return;
-        setCurrentUserId(null);
-        setIsPrivilegedViewer(false);
-        setAuthLoading(false);
-      }
-    }
-
-    void loadSessionOnly();
-
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      const uid = newSession?.user?.id ?? null;
-      if (!alive) return;
-
-      setCurrentUserId(uid);
-      setAuthLoading(false);
-
-      if (uid) void loadViewerPrivilege(uid);
-      else setIsPrivilegedViewer(false);
-    });
-
-    const onFocus = () => void loadSessionOnly();
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") void loadSessionOnly();
-    };
-
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onVisibility);
-
-    return () => {
-      alive = false;
-      sub?.subscription?.unsubscribe();
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, []);
 
   useEffect(() => {
     if (currentUserId && !authLoading) {
@@ -193,6 +119,7 @@ export default function FeedPage() {
   async function handleGuess(imageId: number, age: number) {
     const result = await createAgeGuess({ imageId, guessedAge: age });
     if (!result?.ok) return result;
+    window.dispatchEvent(new Event("aw-hot-message-refresh"));
     const confirmedAge = Number(result.guessedAge ?? age);
 
     const target = posts.find((post) => Number(post.images?.[0]?.id) === imageId) ?? null;
@@ -287,7 +214,10 @@ export default function FeedPage() {
       <SectionHeaderFilter
         title="Feed"
         iconPath="/ui/Menu-Feed.ico"
-        helpText="Feed ti ukazuje fotky k tipování v aktuální filtraci. Trychtýř mění, co chceš vidět. Obnovení načte nový výběr a po správných tipech se obsah průběžně proměňuje."
+        helpText={"Feed zobrazuje fotky ostatních, které můžeš tipovat. Tvoje vlastní fotky ani fotky, které už jsi běžně tipoval, se ti tu nezobrazují.\n\nFiltr upraví výběr podle tagů a skrytých fotek. Refresh načte nový výběr podle aktuálního nastavení.\n\nKaždý tip pomáhá zpřesňovat AW výsledek ostatních. Výběr se průběžně mění podle dostupných fotek, počtu hlasů, aktivity uživatelů a náhodného prvku, aby se dostalo i na nové nebo méně tipované fotky."}
+        helpKey="feed"
+        helpModalTitle="Nápověda - Feed"
+        helpModalOverlayClassName="z-[140]"
         storageKey="aw:filter:feed"
         options={filterOptions}
         mainTitle="Tagy"
@@ -316,6 +246,7 @@ export default function FeedPage() {
               isSuperUser={isPrivilegedViewer}
               forceInlineGuess
               hideViewerMetadata={!isPrivilegedViewer}
+              hideTimestamps
               showPostMenu={false}
               framelessImages
               imageTileClassName="mx-auto w-3/4"

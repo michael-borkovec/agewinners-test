@@ -13,6 +13,7 @@ import { reportImage, REPORT_REASONS, ReportReason } from "@/lib/api/imageReport
 import AwButton from "@/components/AwButton";
 import { awAlert } from "@/components/AwDialog";
 import CloseButton from "@/components/CloseButton";
+import HelpIconButton from "@/components/HelpIconButton";
 
 export default function ReportImageModal(props: {
   open: boolean;
@@ -63,12 +64,17 @@ export default function ReportImageModal(props: {
         <div className="flex items-start justify-between gap-3">
           <div>
             <h3 className="text-lg font-semibold text-slate-900">Nahlásit fotku</h3>
-            <p className="mt-1 text-sm text-slate-600">
-              Napište důvod nahlášení:
-            </p>
+            <p className="mt-1 text-sm text-slate-600">Napište důvod nahlášení:</p>
           </div>
 
-          <CloseButton onClick={props.onClose} disabled={sending} />
+          <div className="flex items-center gap-1">
+            <HelpIconButton
+              helpText="Nahlášení použij, když je fotka nevhodná, porušuje pravidla nebo potřebuje kontrolu správcem.\n\nVyber nejbližší důvod a podle potřeby doplň komentář. U volby „Ostatní“ je komentář povinný, aby správci věděli, co mají posoudit.\n\nOdesláním se fotka automaticky nemaže. Nahlášení se předá ke kontrole a správce rozhodne o dalším postupu."
+              helpKey="image-report"
+              modalTitle="Nápověda - nahlášení fotky"
+            />
+            <CloseButton onClick={props.onClose} disabled={sending} />
+          </div>
         </div>
 
         <div className="mt-4 grid gap-3">

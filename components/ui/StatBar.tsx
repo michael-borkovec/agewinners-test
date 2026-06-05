@@ -1,4 +1,4 @@
-/**
+﻿/**
  * File: components/ui/StatBar.tsx
  *
  * Purpose:
@@ -48,7 +48,7 @@ export default function StatBar({ valuePct, ariaLabel, height = 10 }: StatBarPro
   return (
     <div className="w-full">
       <div
-        className="relative w-full overflow-hidden rounded-full border border-slate-200 bg-white"
+        className="relative w-full overflow-hidden rounded-full bg-white"
         style={{ height }}
         role="img"
         aria-label={ariaLabel ? `${ariaLabel}: ${pct.toFixed(0)} %` : `Hodnota: ${pct.toFixed(0)} %`}
@@ -71,3 +71,4 @@ export default function StatBar({ valuePct, ariaLabel, height = 10 }: StatBarPro
     </div>
   );
 }
+

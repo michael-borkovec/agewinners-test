@@ -1,4 +1,4 @@
-/**
+﻿/**
  * File purpose
  * - Modal for owner-side photo editing.
  * Main responsibilities
@@ -19,6 +19,13 @@ import AdvancedSection from "@/components/edit-image/AdvancedSection";
 import ImageBlurEditor, { type BlurEllipse } from "@/components/ImageBlurEditor";
 import { getMyImageTagOptions, type ImageTagOption } from "@/lib/api/stats";
 import { normalizeImageTag, normalizeImageTags, PHOTO_TAG_OPTIONS, type PhotoTag } from "@/lib/api/posts";
+import {
+  AW_DIRECTIONS,
+  AW_DIRECTION_LABELS,
+  getAwDirectionTags,
+  normalizeAwDirectionKeys,
+  type AwDirectionKey,
+} from "@/lib/awDirections";
 
 type PhotoCategory = PhotoTag;
 type TagSuggestion = {
@@ -44,6 +51,7 @@ export type EditImageInitial = {
   taken_at: string | null;
   photo_category: PhotoCategory | null;
   tags?: PhotoTag[] | null;
+  aw_directions?: AwDirectionKey[] | null;
   include_in_global_aw: boolean | null;
   comment: string | null;
   public_url?: string | null;
@@ -55,6 +63,7 @@ type EditImageSavePayload = {
   imageId: number;
   takenAt: string;
   photoTags: PhotoTag[];
+  awDirections: AwDirectionKey[];
   includeInGlobalAw: boolean;
   comment: string | null;
   replacementFile?: File | null;
@@ -97,6 +106,8 @@ export default function EditImageModal({
 }) {
   const [takenAt, setTakenAt] = useState("");
   const [photoTags, setPhotoTags] = useState<PhotoTag[]>([]);
+  const [awDirections, setAwDirections] = useState<AwDirectionKey[]>([]);
+  const [directionTagsOpen, setDirectionTagsOpen] = useState(false);
   const [customTagDraft, setCustomTagDraft] = useState("");
   const [tagInputFocused, setTagInputFocused] = useState(false);
   const [availableTags, setAvailableTags] = useState<ImageTagOption[]>([]);
@@ -113,9 +124,15 @@ export default function EditImageModal({
     () => normalizeImageTags([...(Array.isArray(initial?.tags) ? initial?.tags : []), initial?.photo_category]),
     [initial?.photo_category, initial?.tags]
   );
+  const normalizedInitialDirections = useMemo(
+    () => normalizeAwDirectionKeys(Array.isArray(initial?.aw_directions) ? initial.aw_directions : []),
+    [initial?.aw_directions]
+  );
   const normalizedCurrentTags = useMemo(() => normalizeImageTags(photoTags), [photoTags]);
+  const normalizedCurrentDirections = useMemo(() => normalizeAwDirectionKeys(awDirections), [awDirections]);
   const normalizedInitialComment = useMemo(() => normalizeComment(initial?.comment), [initial?.comment]);
   const trimmedComment = useMemo(() => normalizeComment(comment), [comment]);
+  const directionTagOptions = useMemo(() => getAwDirectionTags(awDirections), [awDirections]);
   const blurSourceAvailable = Boolean(initial?.public_url || initial?.public_url_medium || initial?.public_url_thumb || pendingBlurredImage);
 
   useEffect(() => {
@@ -123,6 +140,8 @@ export default function EditImageModal({
 
     setTakenAt((initial.taken_at ?? "").slice(0, 10));
     setPhotoTags(normalizedInitialTags);
+    setAwDirections(normalizedInitialDirections);
+    setDirectionTagsOpen(false);
     setCustomTagDraft("");
     setIsExperimental((initial.include_in_global_aw ?? true) === false);
     setComment((initial.comment ?? "").slice(0, 50));
@@ -131,7 +150,7 @@ export default function EditImageModal({
     setBlurSourcePreviewUrl(null);
     setBlurLoading(false);
     setPendingBlurredImage(null);
-  }, [initial, normalizedInitialTags, open]);
+  }, [initial, normalizedInitialDirections, normalizedInitialTags, open]);
 
   useEffect(() => {
     if (open) return;
@@ -180,6 +199,7 @@ export default function EditImageModal({
     if (!initial || !imageId) return false;
     if (takenAt.trim() !== (initial.taken_at ?? "").slice(0, 10)) return true;
     if (normalizedCurrentTags.join("|") !== normalizedInitialTags.join("|")) return true;
+    if (normalizedCurrentDirections.join("|") !== normalizedInitialDirections.join("|")) return true;
     if (isExperimental !== ((initial.include_in_global_aw ?? true) === false)) return true;
     if (trimmedComment !== normalizedInitialComment) return true;
     if (pendingBlurredImage?.file) return true;
@@ -188,8 +208,10 @@ export default function EditImageModal({
     imageId,
     initial,
     isExperimental,
+    normalizedCurrentDirections,
     normalizedCurrentTags,
     normalizedInitialComment,
+    normalizedInitialDirections,
     normalizedInitialTags,
     pendingBlurredImage?.file,
     takenAt,
@@ -212,6 +234,7 @@ export default function EditImageModal({
 
     predefined.forEach((option) => labels.set(option.value, option.label));
     availableTags.forEach((option) => labels.set(option.tag, option.label));
+    getAwDirectionTags(AW_DIRECTIONS.map((direction) => direction.key)).forEach((option) => labels.set(option.tag, option.label));
 
     return labels;
   }, [availableTags]);
@@ -279,6 +302,25 @@ export default function EditImageModal({
     setPhotoTags((prev) => prev.map(normalizeImageTag).filter((item) => item && item !== normalized));
   }
 
+  function toggleAwDirection(directionKey: AwDirectionKey) {
+    setAwDirections((prev) => {
+      const current = new Set(normalizeAwDirectionKeys(prev));
+      if (current.has(directionKey)) current.delete(directionKey);
+      else current.add(directionKey);
+      return Array.from(current);
+    });
+  }
+
+  function toggleDirectionTag(tag: string) {
+    const normalized = normalizeImageTag(tag);
+    if (!normalized) return;
+    if (photoTags.map(normalizeImageTag).includes(normalized)) {
+      removePhotoTag(normalized);
+      return;
+    }
+    addPhotoTag(normalized);
+  }
+
   function addCustomPhotoTag() {
     addPhotoTag(customTagDraft);
   }
@@ -324,6 +366,7 @@ export default function EditImageModal({
       imageId,
       takenAt,
       photoTags: normalizedCurrentTags,
+      awDirections: normalizedCurrentDirections,
       includeInGlobalAw: !isExperimental,
       comment: trimmedComment ? trimmedComment : null,
       replacementFile: pendingBlurredImage?.file ?? null,
@@ -380,8 +423,75 @@ export default function EditImageModal({
             </label>
 
             <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.04em] text-slate-500">AW směr</div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {AW_DIRECTIONS.map((direction) => {
+                  const selected = normalizedCurrentDirections.includes(direction.key);
+                  return (
+                    <button
+                      key={direction.key}
+                      type="button"
+                      onClick={() => toggleAwDirection(direction.key)}
+                      disabled={busy}
+                      className={[
+                        "rounded-lg px-2.5 py-1.5 text-xs font-semibold transition disabled:opacity-60",
+                        selected ? "bg-[#32CD32] text-white shadow-sm" : "bg-emerald-50 text-emerald-900 hover:bg-emerald-100",
+                      ].join(" ")}
+                    >
+                      {direction.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-1 text-[11px] leading-4 text-slate-500">Volitelné. Jedna fotka může mít více směrů.</p>
+
+              {normalizedCurrentDirections.length > 0 ? (
+                <div className="mt-3">
+                  <AwButton
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setDirectionTagsOpen((value) => !value)}
+                    disabled={busy}
+                    className="no-underline"
+                  >
+                    Tagy AW směru
+                  </AwButton>
+
+                  {directionTagsOpen ? (
+                    <div className="mt-3 rounded-xl bg-emerald-50/50 p-3">
+                      <div className="flex flex-wrap gap-2">
+                        {directionTagOptions.map((option) => {
+                          const selected = normalizedCurrentTags.includes(normalizeImageTag(option.tag) as PhotoTag);
+                          return (
+                            <button
+                              key={`${option.directionKey}-${option.tag}`}
+                              type="button"
+                              onClick={() => toggleDirectionTag(option.tag)}
+                              disabled={busy}
+                              title={AW_DIRECTION_LABELS[option.directionKey]}
+                              className={[
+                                "rounded-lg px-2.5 py-1.5 text-xs font-semibold transition disabled:opacity-60",
+                                selected
+                                  ? "border border-emerald-500 bg-white text-emerald-800"
+                                  : "border border-transparent bg-white/80 text-slate-700 hover:bg-white",
+                              ].join(" ")}
+                            >
+                              {selected ? "✓ " : ""}
+                              {option.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+
+            <div>
               <div className="text-xs font-semibold uppercase tracking-[0.04em] text-slate-500">Tagy</div>
-              <div className="mt-2 rounded-xl border border-slate-200 bg-white px-3 py-3 focus-within:border-emerald-300">
+              <div className="mt-2 rounded-xl bg-white px-3 py-3 focus-within:border-emerald-300">
                 <div className="flex flex-wrap items-center gap-2">
                   {photoTags.map((tag) => (
                     <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">
@@ -423,7 +533,7 @@ export default function EditImageModal({
               </div>
 
               {(tagInputFocused || customTagDraft.trim()) && tagSuggestions.length > 0 ? (
-                <div className="mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                <div className="mt-2 overflow-hidden rounded-xl bg-white shadow-sm">
                   {tagSuggestions.map((option) => (
                     <button
                       key={`${option.source}-${option.tag}`}
@@ -527,3 +637,5 @@ export default function EditImageModal({
     </div>
   );
 }
+
+

@@ -965,3 +965,33 @@ Important notes:
 noví uživatelé dostávají pořadové číslo automaticky při vzniku auth účtu
 
 řešení není závislé na tom, kdy se poprvé vytvoří nebo doplní řádek v `user_profiles`
+
+Iterace 41 — Gamifikační feed algoritmus v1
+
+Feature / change: feed kandidátních fotek používá backendový výběr 7 preferovaných + 3 náhodných fotek s vazbou na Power score
+
+Files affected:
+
+supabase/migrations/20260509_gamified_feed_batch.sql
+lib/api/posts.ts
+app/page.tsx
+docs/DATABASE.md
+docs/ITERATION_HISTORY.md
+
+Short description:
+
+přidána RPC `get_gamified_feed_image_batch`
+
+feed filtruje cizí, netipované, viditelné a neskryté fotky na backendu
+
+`feed_score` kombinuje contribution score, Power score, under-tipped score, recency a diversity
+
+dávka má limit 10 fotek a max 2 fotky od stejného autora
+
+Power score slouží jen jako prioritizační signál feedu, nemění AW věk ani váhu tipů
+
+Important notes:
+
+aktivní album kontext používá `post_albums`, ne legacy `posts.album_id`
+
+dokud není migrace aplikovaná v Supabase, frontend umí spadnout na původní loader

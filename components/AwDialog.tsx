@@ -151,21 +151,33 @@ export function AwDialogProvider({ children }: { children: ReactNode }) {
 
   const title =
     active?.title ??
-    (active?.kind === "confirm" ? "Potvrzení akce" : active?.kind === "prompt" ? "Doplň údaj" : "Upozornění");
+    (active?.kind === "confirm" ? "Potvrzení akce" : active?.kind === "prompt" ? "Doplň údaj" : "");
   const confirmLabel = active?.confirmLabel ?? (active?.kind === "alert" ? "OK" : active?.kind === "prompt" ? "Potvrdit" : "Ano");
   const cancelLabel = active?.cancelLabel ?? "Zrušit";
+  const dialogTitleId = title ? "aw-dialog-title" : undefined;
 
   return (
     <AwDialogContext.Provider value={api}>
       {children}
 
       {active ? (
-        <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/45 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="aw-dialog-title">
-          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl" onClick={(event) => event.stopPropagation()}>
-            <div className="space-y-2">
-              <h2 id="aw-dialog-title" className="text-lg font-bold text-slate-950">
-                {title}
-              </h2>
+        <div
+          className="fixed inset-0 z-[120] flex items-end justify-center bg-black/45 p-4 sm:items-center"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={dialogTitleId}
+          aria-label={dialogTitleId ? undefined : active.message}
+        >
+          <div
+            className={`w-full rounded-2xl bg-white shadow-2xl ${active.kind === "alert" ? "max-w-sm p-4" : "max-w-md p-5"}`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className={title ? "space-y-2" : ""}>
+              {title ? (
+                <h2 id="aw-dialog-title" className="text-lg font-bold text-slate-950">
+                  {title}
+                </h2>
+              ) : null}
               <p className="whitespace-pre-line text-sm leading-6 text-slate-700">{active.message}</p>
             </div>
 
@@ -185,7 +197,7 @@ export function AwDialogProvider({ children }: { children: ReactNode }) {
               />
             ) : null}
 
-            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <div className={`${active.kind === "alert" ? "mt-4" : "mt-5"} flex flex-col-reverse gap-2 sm:flex-row sm:justify-end`}>
               {active.kind !== "alert" ? (
                 <AwButton variant="tertiary" onClick={() => closeWith(active.kind === "confirm" ? false : null)}>
                   {cancelLabel}

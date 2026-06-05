@@ -1,4 +1,4 @@
-/**
+﻿/**
  * File: app/profile/photos/page.tsx
  * Description:
  *   Profilová sekce: "Moje fotky & věkové tipy" (/profile/photos)
@@ -131,7 +131,7 @@ function compareNullableNumber(a: number | null, b: number | null, dir: "asc" | 
 
 function EmptyState({ title, text }: { title: string; text: string }) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-6 text-gray-700">
+    <div className="rounded-2xl bg-white p-6 text-gray-700">
       <div className="text-base font-semibold text-gray-900">{title}</div>
       <div className="mt-1 text-sm text-gray-600">{text}</div>
     </div>
@@ -933,7 +933,7 @@ export default function ProfilePhotosPage() {
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {sortedPhotos.map((p) => (
-                <div key={p.id} className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                <div key={p.id} className="overflow-hidden rounded-2xl bg-white shadow-sm">
                   <div className="flex h-48 items-center justify-center bg-gray-50">
                     {p.public_url ? (
                       <img
@@ -971,7 +971,7 @@ export default function ProfilePhotosPage() {
 
                    <div className="pt-2 text-xs flex items-center gap-2">
   <Link href={`/profile/photos/${p.id}`} className="text-emerald-700 hover:underline">
-    Statistiky
+    Vývoj
   </Link>
   <span className="text-gray-300">|</span>
   <Link href={`/profile/photos/${p.id}?edit=1`} className="text-emerald-700 hover:underline">
@@ -996,7 +996,7 @@ export default function ProfilePhotosPage() {
               {sortedAlbums.map((a) => {
                 const aw = a.aw_age !== null ? a.aw_age : a.aw_age_computed;
                 return (
-                  <div key={a.id} className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                  <div key={a.id} className="overflow-hidden rounded-2xl bg-white shadow-sm">
                     <div className="flex h-48 items-center justify-center bg-gray-50">
                       {a.cover_url ? (
                         <img
@@ -1037,7 +1037,7 @@ export default function ProfilePhotosPage() {
   </Link>
   <span className="text-gray-300">|</span>
   <Link href={`/profile/albums/${a.id}`} className="text-emerald-700 hover:underline">
-    Statistiky
+    Vývoj
   </Link>
   <span className="text-gray-300">|</span>
   <Link href={`/profile/albums/${a.id}?edit=1`} className="text-emerald-700 hover:underline">
@@ -1060,7 +1060,7 @@ export default function ProfilePhotosPage() {
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {sortedPosts.map((p) => (
-                <div key={p.id} className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                <div key={p.id} className="overflow-hidden rounded-2xl bg-white shadow-sm">
                   <div className="flex h-48 items-center justify-center bg-gray-50">
                     {p.cover_url ? (
                       <img src={p.cover_url} alt="Post cover" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
@@ -1088,7 +1088,7 @@ export default function ProfilePhotosPage() {
   </Link>
   <span className="text-gray-300">|</span>
   <Link href={`/profile/posts/${p.id}`} className="text-emerald-700 hover:underline">
-    Statistiky
+    Vývoj
   </Link>
   <span className="text-gray-300">|</span>
   <Link href={`/profile/posts/${p.id}?edit=1`} className="text-emerald-700 hover:underline">
@@ -1110,7 +1110,7 @@ export default function ProfilePhotosPage() {
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {sortedGuesses.map((g) => (
-                <div key={g.id} className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                <div key={g.id} className="overflow-hidden rounded-2xl bg-white shadow-sm">
                   <div className="flex h-48 items-center justify-center bg-gray-50">
                     {g.image_public_url ? (
                       <img
@@ -1143,7 +1143,7 @@ export default function ProfilePhotosPage() {
                     <div className="pt-2 text-xs">
                       <div className="pt-2 text-xs">
   <Link href={`/profile/photos/${g.image_id}`} className="text-emerald-700 hover:underline">
-    Statistiky fotky
+    Vývoj fotky
   </Link>
 </div>
                     </div>
@@ -1157,3 +1157,4 @@ export default function ProfilePhotosPage() {
     </section>
   );
 }
+

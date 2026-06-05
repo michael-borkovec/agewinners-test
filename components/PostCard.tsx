@@ -1,4 +1,4 @@
-/**
+﻿/**
  * File: components/PostCard.tsx
  * Main responsibilities:
  * - Render one post card with images and optional age guessing
@@ -44,6 +44,7 @@ import { buildCommentTree, type CommentNode } from "@/lib/commentsTree";
 import { deleteMyImageCompletely, getMyImageForEdit, updateMyImageFile, updateMyImageMetadata } from "@/lib/api/images";
 import { createPostStory } from "@/lib/api/postStories";
 import { deleteMyPost, updateMyPostDetails } from "@/lib/api/posts";
+import type { AwDirectionKey } from "@/lib/awDirections";
 import { formatRelativeUiTimestamp } from "@/lib/utils/timeFormat";
 import type { UiPost } from "@/types/ui";
 
@@ -71,9 +72,9 @@ const REACTION_OPTIONS: Array<{
   emoji: string;
   bgClass: string;
 }> = [
-  { key: "like", label: "Like", emoji: "👍", bgClass: "bg-sky-100" },
+  { key: "like", label: "Like", emoji: "ðŸ‘", bgClass: "bg-sky-100" },
   { key: "clap", label: "Tleskám", emoji: "👏", bgClass: "bg-emerald-100" },
-  { key: "care", label: "Podpora", emoji: "🤗", bgClass: "bg-violet-100" },
+  { key: "care", label: "Podpora", emoji: "ðŸ¤—", bgClass: "bg-violet-100" },
   { key: "love", label: "Láska", emoji: "❤️", bgClass: "bg-rose-100" },
   { key: "insight", label: "Zajímavé", emoji: "💡", bgClass: "bg-amber-100" },
   { key: "fun", label: "Úsměv", emoji: "😊", bgClass: "bg-cyan-100" },
@@ -103,6 +104,8 @@ type PostCardProps = {
   enableOwnerComments?: boolean;
   focusImageId?: number | null;
   framelessImages?: boolean;
+  borderlessCard?: boolean;
+  hideTimestamps?: boolean;
   imageTileClassName?: string;
 };
 
@@ -261,7 +264,7 @@ function MenuButton(props: { onClick: () => void; label: string }) {
 
 function MenuPanel(props: { children: ReactNode }) {
   return (
-    <div className="absolute right-0 top-11 z-20 min-w-[180px] rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
+    <div className="absolute right-0 top-11 z-20 min-w-[180px] rounded-xl bg-white p-1 shadow-lg">
       {props.children}
     </div>
   );
@@ -330,7 +333,7 @@ function PostStoryBlock({ story }: { story: any }) {
   if (!body && images.length === 0) return null;
 
   return (
-    <section className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50/60 p-3">
+    <section className="mt-4 rounded-xl bg-emerald-50/60 p-3">
       <div className="text-sm font-semibold text-slate-900">Příběh autora</div>
       {body ? <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{body}</p> : null}
       {images.length > 0 ? (
@@ -581,6 +584,8 @@ export function PostCard({
   enableOwnerComments = false,
   focusImageId = null,
   framelessImages = false,
+  borderlessCard = false,
+  hideTimestamps = false,
   imageTileClassName,
 }: PostCardProps) {
   const postId = toNumber(post?.id);
@@ -979,6 +984,7 @@ export function PostCard({
         taken_at: data?.taken_at ?? null,
         photo_category: data?.photo_category ?? null,
         tags: Array.isArray(data?.tags) ? data.tags : null,
+        aw_directions: Array.isArray(data?.aw_directions) ? data.aw_directions : null,
         include_in_global_aw: data?.include_in_global_aw ?? null,
         comment: data?.comment ?? null,
         public_url: data?.public_url ?? null,
@@ -998,6 +1004,7 @@ export function PostCard({
     imageId: number;
     takenAt: string;
     photoTags: string[];
+    awDirections: AwDirectionKey[];
     includeInGlobalAw: boolean;
     comment: string | null;
     replacementFile?: File | null;
@@ -1206,7 +1213,7 @@ export function PostCard({
     const renderCommentNode = (comment: CommentNode, depth = 0): ReactNode => (
       <div
         key={comment.id}
-        className="rounded-xl border border-slate-200 bg-slate-50 p-3"
+        className="rounded-xl bg-slate-50 p-3"
         style={{ marginLeft: depth ? Math.min(depth * 12, 36) : 0 }}
       >
         <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
@@ -1255,7 +1262,7 @@ export function PostCard({
             </button>
 
             {commentMenuForId === comment.id ? (
-              <div className="absolute right-0 top-8 z-20 min-w-[130px] rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
+              <div className="absolute right-0 top-8 z-20 min-w-[130px] rounded-xl bg-white p-1 shadow-lg">
                 <button
                   type="button"
                   onClick={() => void handleDeleteComment(comment.id, imageId)}
@@ -1281,7 +1288,7 @@ export function PostCard({
           </div>
 
           {replyOpenByCommentId[comment.id] ? (
-            <div className="col-span-2 rounded-xl border border-slate-200 bg-white p-2">
+            <div className="col-span-2 rounded-xl bg-white p-2">
               <textarea
                 value={replyDraftByCommentId[comment.id] ?? ""}
                 onChange={(e) => handleReplyDraftChange(comment.id, e.target.value.slice(0, 1000))}
@@ -1295,7 +1302,7 @@ export function PostCard({
                   type="button"
                   onClick={() => void handleReplyToComment({ imageId, commentId: comment.id, body: replyDraftByCommentId[comment.id] ?? "" })}
                   disabled={replySubmittingByCommentId[comment.id] || !(replyDraftByCommentId[comment.id] ?? "").trim()}
-                  className="rounded-xl bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                  className="rounded-xl bg-[#32CD32] px-3 py-2 text-sm font-semibold text-white hover:bg-[#28b828] disabled:opacity-60"
                 >
                   {replySubmittingByCommentId[comment.id] ? "Ukládám..." : "Odeslat odpověď"}
                 </button>
@@ -1376,7 +1383,7 @@ export function PostCard({
         </div>
 
         {open ? (
-          <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-3">
+          <div className="space-y-3 rounded-xl bg-white p-3">
             <div className="flex items-center justify-between gap-3">
               <button
                 type="button"
@@ -1407,7 +1414,7 @@ export function PostCard({
   return (
     <>
       {editSuccessToast ? (
-        <div className="fixed bottom-5 left-1/2 z-[90] -translate-x-1/2 rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm font-medium text-emerald-800 shadow-lg">
+        <div className="fixed bottom-5 left-1/2 z-[90] -translate-x-1/2 rounded-xl bg-white px-4 py-3 text-sm font-medium text-emerald-800 shadow-lg">
           Změny uloženy
         </div>
       ) : null}
@@ -1675,7 +1682,7 @@ export function PostCard({
               </div>
             ) : null}
 
-            {canSeeViewerMetadata ? (
+            {canSeeViewerMetadata && !hideTimestamps ? (
               <div className="mt-2 text-center text-[11px] text-slate-500">{formatRelativeUiTimestamp(item.image?.taken_at ?? null)}</div>
             ) : null}
           </div>
@@ -1796,7 +1803,13 @@ export function PostCard({
         </div>
       ) : null}
 
-      <article className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+      <article
+        className={
+          framelessImages || borderlessCard
+            ? "rounded-2xl bg-white p-3 sm:p-4"
+            : "rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4"
+        }
+      >
         <div className="flex items-start justify-between gap-4">
           {canSeeViewerMetadata ? (
             <div className="min-w-0">
@@ -1813,7 +1826,7 @@ export function PostCard({
               )}
 
               <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500">
-                {post?.createdAt || post?.time ? <span>{formatRelativeUiTimestamp(String(post?.createdAt ?? post?.time))}</span> : null}
+                {!hideTimestamps && (post?.createdAt || post?.time) ? <span>{formatRelativeUiTimestamp(String(post?.createdAt ?? post?.time))}</span> : null}
                 {!hideAlbumBadge && albumTitle ? (
                   <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">Album: {albumTitle}</span>
                 ) : null}
@@ -1969,6 +1982,8 @@ export function PostCard({
 }
 
 export default PostCard;
+
+
 
 
 

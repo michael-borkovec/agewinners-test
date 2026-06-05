@@ -25,13 +25,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { NewPostForm } from "@/components/NewPostForm";
 import { PostCard } from "@/components/PostCard";
+import SoftEmptyState from "@/components/SoftEmptyState";
 import { getMyPosts, normalizeImageTags, PHOTO_TAG_LABELS, type PredefinedPhotoTag } from "@/lib/api/posts";
 import type { UiPost, UiPostImage } from "@/types/ui";
 import { useAuth } from "@/components/auth/AuthContext";
 import { SectionHeaderFilter } from "@/components/SectionHeaderFilter";
 
 const ALL_TAGS = Object.keys(PHOTO_TAG_LABELS) as PredefinedPhotoTag[];
-
 type TaggedPostImage = UiPostImage & {
   photo_category?: string | null;
   tags?: string[] | null;
@@ -112,7 +112,9 @@ export default function MyPostsPage() {
       <SectionHeaderFilter
         title="Moje posty"
         iconPath="/ui/Menu-moje-posty.ico"
-        helpText="Tady spravuješ své příspěvky. Přes trychtýř omezíš zobrazení podle tagů fotek, otazník stručně připomene smysl stránky a obnovení načte aktuální stav po úpravách."
+        helpText="V Moje posty nahráváš, upravuješ a kontroluješ vlastní příspěvky a fotky.\\n\\nFiltr zúží zobrazení podle tagů fotek. Refresh načte aktuální stav po vytvoření, úpravách nebo smazání obsahu.\\n\\nDobře popsané fotky se lépe filtrují, snáz se používají ve výzvách a později dávají přehlednější statistiky."
+        helpKey="my-posts"
+        helpModalTitle="Nápověda - Moje posty"
         storageKey="aw:filter:my-posts"
         options={filterOptions}
         mainTitle="Tagy"
@@ -133,7 +135,14 @@ export default function MyPostsPage() {
         {err ? <p className="text-rose-700">{err}</p> : null}
 
         {!loading && !err && visiblePosts.length === 0 ? (
-          <p className="text-slate-600">{filterTags.length === 0 ? "Zatím tu nemáš žádný post." : "V této filtraci nemáš žádný post."}</p>
+          <SoftEmptyState
+            title={filterTags.length === 0 ? "Zatím tu nemáš žádný post" : "V této filtraci není žádný post"}
+            text={
+              filterTags.length === 0
+                ? "Až vytvoříš první příspěvek s fotkami, objeví se tady a budeš ho moci dál upravovat, řadit i používat ve výzvách."
+                : "Zkus změnit vybrané tagy nebo filtr vymazat, aby se znovu ukázaly všechny tvoje příspěvky."
+            }
+          />
         ) : null}
 
         <div className="space-y-4">
@@ -143,6 +152,7 @@ export default function MyPostsPage() {
               post={p}
               currentUserId={userId}
               hideAlbumBadge
+              borderlessCard
               renderCaptionAboveImage
               enableOwnerComments
               focusImageId={focusImageId}

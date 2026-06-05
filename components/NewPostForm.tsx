@@ -1,4 +1,4 @@
-/**
+﻿/**
  * File purpose
  * - Create a new post with photo uploads and metadata.
  * - Upload photos, create image rows, create a post, and optionally assign it to an album.
@@ -23,6 +23,13 @@ import ImageBlurEditor, { type BlurEllipse } from "@/components/ImageBlurEditor"
 import { uploadAndCreateImage } from "@/lib/api/images";
 import { createPostWithImages, normalizeImageTag, PHOTO_TAG_OPTIONS, type PhotoTag } from "@/lib/api/posts";
 import { getMyImageTagOptions, type ImageTagOption } from "@/lib/api/stats";
+import {
+  AW_DIRECTIONS,
+  AW_DIRECTION_LABELS,
+  getAwDirectionTags,
+  normalizeAwDirectionKeys,
+  type AwDirectionKey,
+} from "@/lib/awDirections";
 import { createAlbum, getAlbumsByOwner } from "@/lib/api/albums";
 import { createPostStory } from "@/lib/api/postStories";
 import { listMyAwChallenges, type AwChallenge } from "@/lib/api/challenges";
@@ -36,6 +43,7 @@ type PickedPhoto = {
   previewUrl: string;
   takenAt: string;
   photoTags: PhotoTag[];
+  awDirections: AwDirectionKey[];
   tagLabels: Record<string, string>;
   customTagDraft: string;
   includeInGlobalAw: boolean;
@@ -54,7 +62,7 @@ type OwnedAlbumOption = {
 
 type TagModalState =
   | { open: false; photoId: null; kind: null }
-  | { open: true; photoId: string; kind: "default" | "challenges" | "custom" };
+  | { open: true; photoId: string; kind: "default" | "challenges" | "custom" | "direction" };
 
 function uid() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -212,7 +220,7 @@ function TagSelectionModal({
   onAddCustomTag,
   onDraftChange,
 }: {
-  kind: "default" | "challenges" | "custom";
+  kind: "default" | "challenges" | "custom" | "direction";
   photo: PickedPhoto;
   taggedChallenges: AwChallenge[];
   customTagHistory: ImageTagOption[];
@@ -222,20 +230,29 @@ function TagSelectionModal({
   onDraftChange: (photoId: string, value: string) => void;
 }) {
   const selectedTags = new Set(photo.photoTags.map(normalizeImageTag).filter(Boolean));
+  const directionTagOptions = getAwDirectionTags(photo.awDirections);
   const title =
-    kind === "default" ? "Výchozí tagy" : kind === "challenges" ? "Moje výzvy" : "Vlastní tagy";
+    kind === "default"
+      ? "Výchozí tagy"
+      : kind === "challenges"
+        ? "Moje výzvy"
+        : kind === "direction"
+          ? "Tagy AW směru"
+          : "Vlastní tagy";
   const description =
     kind === "default"
       ? "Vyber jeden nebo více výchozích tagů pro tuto fotku."
       : kind === "challenges"
         ? "Vyber výzvy, ke kterým má tato fotka patřit."
-        : "Přidej nový vlastní tag nebo vyber některý z historie.";
+        : kind === "direction"
+          ? "Vyber tagy podle zvolených AW směrů. AW sleduje dojem z fotky, ne zdravotní účinek."
+          : "Přidej nový vlastní tag nebo vyber některý z historie.";
 
   function chipClass(selected: boolean) {
     return [
       "inline-flex min-h-10 items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:ring-offset-2",
       selected
-        ? "bg-emerald-600 text-white shadow-sm"
+        ? "bg-[#32CD32] text-white shadow-sm"
         : "bg-emerald-50 text-emerald-900 hover:bg-emerald-100",
     ].join(" ");
   }
@@ -305,6 +322,34 @@ function TagSelectionModal({
                   </button>
                 );
               })
+            )}
+          </div>
+        ) : null}
+
+        {kind === "direction" ? (
+          <div className="mt-5">
+            {directionTagOptions.length === 0 ? (
+              <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
+                Nejdřív vyber AW směr fotky.
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {directionTagOptions.map((option) => {
+                  const selected = selectedTags.has(normalizeImageTag(option.tag));
+                  return (
+                    <button
+                      key={`${option.directionKey}-${option.tag}`}
+                      type="button"
+                      onClick={() => onToggleTag(photo.id, option.tag)}
+                      className={chipClass(selected)}
+                      title={AW_DIRECTION_LABELS[option.directionKey]}
+                    >
+                      {selected ? <span aria-hidden="true">?</span> : null}
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </div>
         ) : null}
@@ -491,6 +536,7 @@ export function NewPostForm({ onCreated }: { onCreated?: () => void }) {
           previewUrl: URL.createObjectURL(f),
           takenAt: "",
           photoTags: [],
+          awDirections: [],
           tagLabels: {},
           customTagDraft: "",
           includeInGlobalAw: true,
@@ -560,6 +606,18 @@ export function NewPostForm({ onCreated }: { onCreated?: () => void }) {
         if (current.has(normalized)) current.delete(normalized);
         else current.add(normalized);
         return { ...photo, photoTags: Array.from(current) };
+      })
+    );
+  }
+
+  function togglePhotoDirection(photoId: string, directionKey: AwDirectionKey) {
+    setPhotos((prev) =>
+      prev.map((photo) => {
+        if (photo.id !== photoId) return photo;
+        const current = new Set(normalizeAwDirectionKeys(photo.awDirections));
+        if (current.has(directionKey)) current.delete(directionKey);
+        else current.add(directionKey);
+        return { ...photo, awDirections: Array.from(current) };
       })
     );
   }
@@ -678,6 +736,9 @@ export function NewPostForm({ onCreated }: { onCreated?: () => void }) {
     const challenge = taggedChallenges.find((item) => normalizeImageTag(item.challenge_tag) === normalized);
     if (challenge) return `Výzva: ${challenge.title}`;
 
+    const directionTag = getAwDirectionTags(photo.awDirections).find((option) => normalizeImageTag(option.tag) === normalized);
+    if (directionTag) return directionTag.label;
+
     return photo.tagLabels[normalized] ?? customTagHistory.find((option) => normalizeImageTag(option.tag) === normalized)?.label ?? formatFallbackTagLabel(normalized);
   }
 
@@ -707,6 +768,7 @@ export function NewPostForm({ onCreated }: { onCreated?: () => void }) {
           file: p.file,
           takenAt: p.takenAt,
           photoTags: p.photoTags,
+          awDirections: p.awDirections,
           includeInGlobalAw: p.includeInGlobalAw,
           comment: p.comment?.trim() ? p.comment.trim().slice(0, 50) : null,
           onProgress: ({ percent, label }) =>
@@ -828,7 +890,7 @@ export function NewPostForm({ onCreated }: { onCreated?: () => void }) {
   const tagModalPhoto = tagModal.open ? photos.find((photo) => photo.id === tagModal.photoId) ?? null : null;
 
   return (
-    <div className="rounded-xl border bg-white p-4">
+    <div className="rounded-xl bg-white p-4">
       <ImageBlurEditor
         open={Boolean(blurEditorPhoto)}
         file={blurEditorPhoto?.file ?? null}
@@ -869,14 +931,14 @@ export function NewPostForm({ onCreated }: { onCreated?: () => void }) {
         ) : null}
 
         {busy ? (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+          <div className="rounded-xl bg-emerald-50 px-4 py-3">
             <div className="flex items-center justify-between gap-3 text-sm font-medium text-emerald-950">
               <span>{uploadProgressLabel || "Nahrávám fotky"}</span>
               <span className="tabular-nums">{uploadProgressPct} %</span>
             </div>
             <div className="mt-2 h-3 overflow-hidden rounded-full bg-emerald-100">
               <div
-                className="h-full rounded-full bg-emerald-600 transition-[width] duration-300 ease-out"
+                className="h-full rounded-full bg-[#32CD32] transition-[width] duration-300 ease-out"
                 style={{ width: `${uploadProgressPct}%` }}
               />
             </div>
@@ -891,7 +953,7 @@ export function NewPostForm({ onCreated }: { onCreated?: () => void }) {
             Název příspěvku <span className="text-rose-700">*</span>
           </label>
           <input
-            className="mt-1 w-full rounded-md border px-3 py-2 text-sm"
+            className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Napr. Muj pokrok"
@@ -910,12 +972,12 @@ export function NewPostForm({ onCreated }: { onCreated?: () => void }) {
             rows={3}
             disabled={busy}
             panelClassName="mt-1"
-            className="min-h-[84px] w-full rounded-md border px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+            className="min-h-[84px] w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
           />
           <p className="mt-1 text-xs text-slate-500">Text je volitelný.</p>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <div className="rounded-xl bg-slate-50 p-3">
           <button
             type="button"
             onClick={() => setStoryOpen((value) => !value)}
@@ -1023,7 +1085,7 @@ export function NewPostForm({ onCreated }: { onCreated?: () => void }) {
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <div className="rounded-xl bg-slate-50 p-3">
           <div className="text-sm font-semibold text-slate-900">Album</div>
           <div className="mt-1 text-xs text-slate-600">
             Volitelně můžeš tento post přidat do existujícího alba, nebo pro něj vytvořit nové album.
@@ -1101,7 +1163,7 @@ export function NewPostForm({ onCreated }: { onCreated?: () => void }) {
               <div key={p.id} className="rounded-lg border p-3">
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <div className="shrink-0">
-                    <div className={`overflow-hidden rounded-md border border-slate-200 bg-slate-50 ${previewFrameClass(p.isPortrait)}`}>
+                    <div className={`overflow-hidden rounded-md bg-slate-50 ${previewFrameClass(p.isPortrait)}`}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={p.previewUrl}
@@ -1170,6 +1232,34 @@ export function NewPostForm({ onCreated }: { onCreated?: () => void }) {
                       </div>
 
                       <div>
+                        <label className="block text-xs text-slate-600">AW směr</label>
+                        <div className="mt-1 flex flex-wrap gap-2">
+                          {AW_DIRECTIONS.map((direction) => {
+                            const selected = p.awDirections.includes(direction.key);
+                            return (
+                              <button
+                                key={direction.key}
+                                type="button"
+                                onClick={() => togglePhotoDirection(p.id, direction.key)}
+                                disabled={busy}
+                                className={[
+                                  "rounded-lg px-2.5 py-1.5 text-xs font-semibold transition disabled:opacity-60",
+                                  selected
+                                    ? "bg-[#32CD32] text-white shadow-sm"
+                                    : "bg-emerald-50 text-emerald-900 hover:bg-emerald-100",
+                                ].join(" ")}
+                              >
+                                {direction.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <p className="mt-1 text-[11px] leading-4 text-slate-500">
+                          Volitelné. Jedna fotka může mít více směrů.
+                        </p>
+                      </div>
+
+                      <div>
                         <label className="block text-xs text-slate-600">Tagy</label>
                         <div className="mt-1 flex flex-wrap gap-2">
                           <AwButton
@@ -1196,6 +1286,16 @@ export function NewPostForm({ onCreated }: { onCreated?: () => void }) {
                           >
                             Vlastní tagy
                           </AwButton>
+                          {p.awDirections.length > 0 ? (
+                            <AwButton
+                              type="button"
+                              onClick={() => setTagModal({ open: true, photoId: p.id, kind: "direction" })}
+                              disabled={busy}
+                              variant="secondary"
+                            >
+                              Tagy AW směru
+                            </AwButton>
+                          ) : null}
                         </div>
                         <div className="mt-3 flex flex-wrap gap-2">
                           {p.photoTags.length === 0 ? (
@@ -1286,3 +1386,5 @@ export function NewPostForm({ onCreated }: { onCreated?: () => void }) {
     </div>
   );
 }
+
+

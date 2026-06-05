@@ -1,4 +1,4 @@
-/**
+﻿/**
  * File: app/profile/posts/[postId]/page.tsx
  * Description:
  *   Detail postu – client-side (kvůli RLS + Next sync dynamic params).
@@ -166,7 +166,7 @@ const { data: rels, error: rErr } = await supabase
       ) : error ? (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-900">{error}</div>
       ) : !post ? null : (
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
           <div className="flex max-h-[520px] items-center justify-center bg-gray-50">
             {coverUrl ? (
               <img src={coverUrl} alt="Cover" className="h-full w-full object-contain" referrerPolicy="no-referrer" />
@@ -192,3 +192,4 @@ const { data: rels, error: rErr } = await supabase
     </section>
   );
 }
+

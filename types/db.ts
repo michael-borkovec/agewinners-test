@@ -7,6 +7,7 @@
  */
 
 export type ContentVisibility = "everyone" | "contacts" | "private";
+export type ProfileGroupVisibility = "everyone" | "contacts" | "private";
 export type AgeRevealMode = "never" | "delayed" | "immediate";
 
 /**
@@ -118,6 +119,15 @@ comments_visibility?: ContentVisibility | null;
   allow_connection_requests?: boolean | null;
   anonymous_guesses_default?: boolean | null;
 
+  social_links_visibility?: ProfileGroupVisibility | null;
+  profile_age_visibility?: ProfileGroupVisibility | null;
+  profile_occupation_visibility?: ProfileGroupVisibility | null;
+  profile_education_visibility?: ProfileGroupVisibility | null;
+  profile_languages_visibility?: ProfileGroupVisibility | null;
+  profile_relationship_visibility?: ProfileGroupVisibility | null;
+  profile_motivation_visibility?: ProfileGroupVisibility | null;
+  profile_body_visibility?: ProfileGroupVisibility | null;
+
   // network privacy
   allow_connections?: boolean | null;
   allow_following?: boolean | null;
@@ -208,6 +218,26 @@ comments_visibility?: ContentVisibility | null;
 
   personalization_ads_consent?: boolean | null;
   personalization_ads_consent_at?: string | null;
+
+  // contact links
+  website_url?: string | null;
+  website_url_hidden?: boolean | null;
+  public_email?: string | null;
+  public_email_hidden?: boolean | null;
+  instagram_url?: string | null;
+  instagram_url_hidden?: boolean | null;
+  facebook_url?: string | null;
+  facebook_url_hidden?: boolean | null;
+  tiktok_url?: string | null;
+  tiktok_url_hidden?: boolean | null;
+  youtube_url?: string | null;
+  youtube_url_hidden?: boolean | null;
+  linkedin_url?: string | null;
+  linkedin_url_hidden?: boolean | null;
+  x_url?: string | null;
+  x_url_hidden?: boolean | null;
+  contact_note?: string | null;
+  contact_note_hidden?: boolean | null;
 
   created_at?: string | null;
   updated_at?: string | null;

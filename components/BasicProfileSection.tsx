@@ -1,4 +1,4 @@
-/**
+﻿/**
  * components/BasicProfileSection.tsx
  *
  * Purpose:
@@ -116,7 +116,7 @@ export default function BasicProfileSection() {
           <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-900">{error}</div>
         )}
         {success && (
-          <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900">
+          <div className="mt-4 rounded-2xl bg-emerald-50 p-4 text-emerald-900">
             {success}
           </div>
         )}
@@ -177,3 +177,4 @@ export default function BasicProfileSection() {
     </div>
   );
 }
+

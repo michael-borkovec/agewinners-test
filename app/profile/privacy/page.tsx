@@ -1,4 +1,4 @@
-/**
+﻿/**
  * app/profile/privacy/page.tsx
  *
  * Purpose:
@@ -28,7 +28,8 @@
 import { useEffect, useState } from "react";
 import AwButton from "@/components/AwButton";
 import { awAlert, awConfirm } from "@/components/AwDialog";
-import type { DbUserProfile, ContentVisibility } from "@/types/db";
+import { ProfileHero, ProfileSectionCard } from "@/app/profile/components/ProfileSurface";
+import type { DbUserProfile, ContentVisibility, ProfileGroupVisibility } from "@/types/db";
 import {
   applyMyAlbumVisibilityBackfill,
   applyMyPostVisibilityBackfill,
@@ -39,6 +40,12 @@ import {
 } from "@/lib/api/userProfiles";
 
 function labelVisibility(v: ContentVisibility) {
+  if (v === "everyone") return "Všichni";
+  if (v === "contacts") return "Kontakty";
+  return "Soukromé";
+}
+
+function labelProfileVisibility(v: ProfileGroupVisibility) {
   if (v === "everyone") return "Všichni";
   if (v === "contacts") return "Kontakty";
   return "Soukromé";
@@ -71,10 +78,17 @@ export default function ProfilePrivacyPage() {
   const [defaultAlbumVisibility, setDefaultAlbumVisibility] =
     useState<ContentVisibility>("everyone");
 
-  const [allowAgeVisible, setAllowAgeVisible] = useState(true);
+  const [profileAgeVisibility, setProfileAgeVisibility] = useState<ProfileGroupVisibility>("contacts");
   const [allowConnectionRequests, setAllowConnectionRequests] = useState(true);
   const [allowFollowing, setAllowFollowing] = useState(true);
   const [wellbeingDailyEntryVisibilityDefault, setWellbeingDailyEntryVisibilityDefault] = useState<ContentVisibility>("everyone");
+  const [socialLinksVisibility, setSocialLinksVisibility] = useState<ProfileGroupVisibility>("contacts");
+  const [profileOccupationVisibility, setProfileOccupationVisibility] = useState<ProfileGroupVisibility>("contacts");
+  const [profileEducationVisibility, setProfileEducationVisibility] = useState<ProfileGroupVisibility>("contacts");
+  const [profileLanguagesVisibility, setProfileLanguagesVisibility] = useState<ProfileGroupVisibility>("contacts");
+  const [profileRelationshipVisibility, setProfileRelationshipVisibility] = useState<ProfileGroupVisibility>("contacts");
+  const [profileMotivationVisibility, setProfileMotivationVisibility] = useState<ProfileGroupVisibility>("contacts");
+  const [profileBodyVisibility, setProfileBodyVisibility] = useState<ProfileGroupVisibility>("contacts");
 
   const [anonymousGuessesDefault, setAnonymousGuessesDefault] = useState(false);
   const [revealBusy, setRevealBusy] = useState(false);
@@ -95,10 +109,17 @@ export default function ProfilePrivacyPage() {
       (p.default_album_visibility ?? "everyone") as ContentVisibility
     );
 
-    setAllowAgeVisible(Boolean(p.allow_age_visible ?? true));
+    setProfileAgeVisibility((p.profile_age_visibility ?? (p.allow_age_visible === false ? "private" : "contacts")) as ProfileGroupVisibility);
     setAllowConnectionRequests(Boolean(p.allow_connection_requests ?? true));
     setAllowFollowing(Boolean(p.allow_following ?? true));
     setWellbeingDailyEntryVisibilityDefault((p.wellbeing_daily_entry_visibility_default ?? "everyone") as ContentVisibility);
+    setSocialLinksVisibility((p.social_links_visibility ?? "contacts") as ProfileGroupVisibility);
+    setProfileOccupationVisibility((p.profile_occupation_visibility ?? (p.occupation_hidden ? "private" : "contacts")) as ProfileGroupVisibility);
+    setProfileEducationVisibility((p.profile_education_visibility ?? ((p.is_student_hidden || p.education_level_hidden) ? "private" : "contacts")) as ProfileGroupVisibility);
+    setProfileLanguagesVisibility((p.profile_languages_visibility ?? ((p.native_languages_hidden || p.other_languages_hidden) ? "private" : "contacts")) as ProfileGroupVisibility);
+    setProfileRelationshipVisibility((p.profile_relationship_visibility ?? (p.relationship_status_hidden ? "private" : "contacts")) as ProfileGroupVisibility);
+    setProfileMotivationVisibility((p.profile_motivation_visibility ?? (p.motivation_text_hidden ? "private" : "contacts")) as ProfileGroupVisibility);
+    setProfileBodyVisibility((p.profile_body_visibility ?? ((p.height_cm_hidden || p.weight_kg_hidden) ? "private" : "contacts")) as ProfileGroupVisibility);
     setAnonymousGuessesDefault(Boolean(p.anonymous_guesses_default ?? false));
   }
 
@@ -129,10 +150,17 @@ export default function ProfilePrivacyPage() {
       await updateMyPrivacySettings({
         defaultPostVisibility,
         defaultAlbumVisibility,
-        allowAgeVisible,
+        profileAgeVisibility,
         allowConnectionRequests,
         allowFollowing,
         wellbeingDailyEntryVisibilityDefault,
+        socialLinksVisibility,
+        profileOccupationVisibility,
+        profileEducationVisibility,
+        profileLanguagesVisibility,
+        profileRelationshipVisibility,
+        profileMotivationVisibility,
+        profileBodyVisibility,
       });
 
       await updateMyGuessPrivacySettings({
@@ -223,28 +251,24 @@ export default function ProfilePrivacyPage() {
 
   return (
     <div className="mx-auto w-full max-w-2xl space-y-6 p-6">
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-        <h1 className="text-lg font-bold text-gray-900">Soukromí & personalizace</h1>
-        <p className="mt-1 text-sm text-gray-600">
-          Nastav si, co uvidí ostatní a jak se budeš v aplikaci chovat jako tipař.
-        </p>
-      </div>
+      <ProfileHero
+        title="Soukromí"
+        description="Nastav, kdo uvidí tvůj obsah, kdo tě může kontaktovat a jak se budou chovat nové tipy. Zpětné změny spouštěj jen vědomě."
+      />
 
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm space-y-4">
-        <h2 className="text-sm font-bold text-gray-900">Výchozí viditelnost obsahu</h2>
-
-        <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-          Když post <span className="font-semibold">není v albu</span>, řídí se svou vlastní viditelností.
-          Když je post <span className="font-semibold">v albu</span>, použije se viditelnost alba.
-        </div>
-
-        <div>
-          <label className="text-xs font-semibold text-gray-700">Posty</label>
-          <div className="mt-1 flex items-start gap-2">
+      <ProfileSectionCard
+        title="Výchozí viditelnost obsahu"
+        description={
+          "Tato volba se použije pro nově vytvořený obsah. Zpětná změna je samostatná akce.\n\nKdyž post není v albu, řídí se svou vlastní viditelností. Když je post v albu, použije se viditelnost alba.\n\nAplikovat zpětně na posty změní výchozí viditelnost samostatných postů. Pokud je post v albu, použije se viditelnost alba. Změna může ovlivnit přepočítání AW skóre.\n\nAplikovat zpětně na alba změní viditelnost všech alb. Posty zařazené do alba se pak budou řídit viditelností alba. Změna může ovlivnit přepočítání AW skóre."
+        }
+      >
+        <div className="space-y-4">
+        <div className="grid gap-2 sm:grid-cols-[120px_1fr_auto] sm:items-center">
+          <label className="text-sm font-semibold text-gray-900">Posty</label>
             <select
               value={defaultPostVisibility}
               onChange={(e) => setDefaultPostVisibility(e.target.value as ContentVisibility)}
-              className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              className="w-full rounded-xl bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-emerald-100"
             >
               <option value="everyone">{labelVisibility("everyone")}</option>
               <option value="contacts">{labelVisibility("contacts")}</option>
@@ -254,23 +278,14 @@ export default function ProfilePrivacyPage() {
             <AwButton size="sm" onClick={() => handleApplyBackfill("posty")} disabled={busyPostBackfill} className="shrink-0">
               {busyPostBackfill ? "Pracuji…" : "Aplikovat zpětně"}
             </AwButton>
-
-            <span
-              title={retroInfo("posty")}
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-300 bg-white text-sm font-bold text-gray-700"
-            >
-              i
-            </span>
-          </div>
         </div>
 
-        <div>
-          <label className="text-xs font-semibold text-gray-700">Alba</label>
-          <div className="mt-1 flex items-start gap-2">
+        <div className="grid gap-2 sm:grid-cols-[120px_1fr_auto] sm:items-center">
+          <label className="text-sm font-semibold text-gray-900">Alba</label>
             <select
               value={defaultAlbumVisibility}
               onChange={(e) => setDefaultAlbumVisibility(e.target.value as ContentVisibility)}
-              className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              className="w-full rounded-xl bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-emerald-100"
             >
               <option value="everyone">{labelVisibility("everyone")}</option>
               <option value="contacts">{labelVisibility("contacts")}</option>
@@ -280,104 +295,128 @@ export default function ProfilePrivacyPage() {
             <AwButton size="sm" onClick={() => handleApplyBackfill("alba")} disabled={busyAlbumBackfill} className="shrink-0">
               {busyAlbumBackfill ? "Pracuji…" : "Aplikovat zpětně"}
             </AwButton>
-
-            <span
-              title={retroInfo("alba")}
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-gray-300 bg-white text-sm font-bold text-gray-700"
-            >
-              i
-            </span>
-          </div>
         </div>
-      </div>
+        </div>
+      </ProfileSectionCard>
 
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm space-y-3">
-        <h2 className="text-sm font-bold text-gray-900">Věk</h2>
+      <ProfileSectionCard title="Viditelnost profilu" description="Tady nastavuješ, kdo uvidí vybrané informace z části O mně a sociální sítě. Samotný obsah těchto polí upravuješ v O mně a Sociálních sítích.">
+        <div className="grid gap-3">
+          <ProfileVisibilitySelect label="Sociální sítě" value={socialLinksVisibility} onChange={setSocialLinksVisibility} />
+          <ProfileVisibilitySelect label="Povolání" value={profileOccupationVisibility} onChange={setProfileOccupationVisibility} />
+          <ProfileVisibilitySelect label="Vzdělání a student" value={profileEducationVisibility} onChange={setProfileEducationVisibility} />
+          <ProfileVisibilitySelect label="Jazyky" value={profileLanguagesVisibility} onChange={setProfileLanguagesVisibility} />
+          <ProfileVisibilitySelect label="Vztahový status" value={profileRelationshipVisibility} onChange={setProfileRelationshipVisibility} />
+          <ProfileVisibilitySelect label="Motivační věta" value={profileMotivationVisibility} onChange={setProfileMotivationVisibility} />
+          <ProfileVisibilitySelect label="Výška a váha" value={profileBodyVisibility} onChange={setProfileBodyVisibility} />
+        </div>
+      </ProfileSectionCard>
 
-        <label className="flex items-start gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-900">
-          <input
-            type="checkbox"
-            checked={allowAgeVisible}
-            onChange={(e) => setAllowAgeVisible(e.target.checked)}
-            className="mt-1 h-4 w-4 accent-emerald-600"
-          />
-          <div>
-            <div className="font-semibold">Povolit ostatním, aby viděli můj věk</div>
-            <div className="text-xs text-gray-600">
-              Tohle ovlivňuje i některé funkce (např. reputační skóre).
-            </div>
-          </div>
-        </label>
-      </div>
+      <ProfileSectionCard title="Věk" description="Řídí, kdo uvidí věkové a AW údaje v náhledu profilu. Tohle ovlivňuje i některé funkce, například reputační skóre.">
+        <ProfileVisibilitySelect label="Věk a AW údaje" value={profileAgeVisibility} onChange={setProfileAgeVisibility} />
+      </ProfileSectionCard>
 
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm space-y-3">
-        <h2 className="text-sm font-bold text-gray-900">Moje síť</h2>
+      <ProfileSectionCard title="Moje síť" description="Urči, jestli tě ostatní mohou sledovat nebo požádat o spojení.">
+        <div className="space-y-3">
 
-        <label className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-900">
-          <input
-            type="checkbox"
-            checked={allowConnectionRequests}
-            onChange={(e) => setAllowConnectionRequests(e.target.checked)}
-            className="h-4 w-4 accent-emerald-600"
-          />
+        <div className="flex cursor-pointer items-center gap-3 rounded-xl bg-gray-50 px-3 py-3 text-sm text-gray-900" onClick={() => setAllowConnectionRequests(!allowConnectionRequests)}>
+          <PrivacyCheckbox checked={allowConnectionRequests} onChange={setAllowConnectionRequests} />
           <span className="font-semibold">Povolit žádosti o spojení</span>
-        </label>
+        </div>
 
-        <label className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-900">
-          <input
-            type="checkbox"
-            checked={allowFollowing}
-            onChange={(e) => setAllowFollowing(e.target.checked)}
-            className="h-4 w-4 accent-emerald-600"
-          />
+        <div className="flex cursor-pointer items-center gap-3 rounded-xl bg-gray-50 px-3 py-3 text-sm text-gray-900" onClick={() => setAllowFollowing(!allowFollowing)}>
+          <PrivacyCheckbox checked={allowFollowing} onChange={setAllowFollowing} />
           <span className="font-semibold">Povolit sledování</span>
-        </label>
-      </div>
+        </div>
+        </div>
+      </ProfileSectionCard>
 
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm space-y-3">
-        <h2 className="text-sm font-bold text-gray-900">Wellbeing statistiky</h2>
-        <p className="text-sm leading-6 text-gray-600">Výchozí viditelnost pro celý denní zápis ve statistikách.</p>
+      <ProfileSectionCard title="Wellbeing vývoj" description="Výchozí viditelnost pro celý denní zápis ve statistikách.">
+        <div className="space-y-3">
 
-        <label className="grid gap-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-900 sm:grid-cols-[160px_1fr] sm:items-center">
+        <label className="grid gap-1 rounded-xl bg-gray-50 px-3 py-3 text-sm text-gray-900 sm:grid-cols-[160px_1fr] sm:items-center">
           <span className="font-semibold">Denní zápis</span>
           <select
             value={wellbeingDailyEntryVisibilityDefault}
             onChange={(e) => setWellbeingDailyEntryVisibilityDefault(e.target.value as ContentVisibility)}
-            className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+            className="w-full rounded-xl bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-emerald-100"
           >
             <option value="everyone">{labelVisibility("everyone")}</option>
             <option value="contacts">{labelVisibility("contacts")}</option>
             <option value="private">{labelVisibility("private")}</option>
           </select>
         </label>
-      </div>
+        </div>
+      </ProfileSectionCard>
 
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm space-y-3">
-        <h2 className="text-sm font-bold text-gray-900">Tipování</h2>
+      <ProfileSectionCard title="Tipování" description="Nastavení výchozí anonymity a odtajnění starších tipů.">
+        <div className="space-y-3">
 
-        <label className="flex items-start gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-900">
-          <input
-            type="checkbox"
-            checked={anonymousGuessesDefault}
-            onChange={(e) => setAnonymousGuessesDefault(e.target.checked)}
-            className="mt-1 h-4 w-4 accent-emerald-600"
-          />
+        <div className="flex cursor-pointer items-start gap-3 rounded-xl bg-gray-50 px-3 py-3 text-sm text-gray-900" onClick={() => setAnonymousGuessesDefault(!anonymousGuessesDefault)}>
+          <PrivacyCheckbox checked={anonymousGuessesDefault} onChange={setAnonymousGuessesDefault} className="mt-0.5" />
           <div>
             <div className="font-semibold">Tipovat anonymně (výchozí pro nové tipy)</div>
             <div className="text-xs text-gray-600">
               Platí jen pro nové tipy. Staré tipy se nemění (pokud je níže neodtajníš).
             </div>
           </div>
-        </label>
+        </div>
 
         <AwButton onClick={handleRevealAllMyGuesses} disabled={revealBusy} className="w-full">
           {revealBusy ? "Pracuji…" : "Odtajnit všechny moje minulé tipy"}
         </AwButton>
-      </div>
+        </div>
+      </ProfileSectionCard>
 
       <AwButton variant="primary" onClick={handleSave} disabled={saving} className="w-full">
         {saving ? "Ukládám…" : "Uložit"}
       </AwButton>
     </div>
+  );
+}
+
+function ProfileVisibilitySelect({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: ProfileGroupVisibility;
+  onChange: (value: ProfileGroupVisibility) => void;
+}) {
+  return (
+    <label className="grid gap-2 rounded-xl bg-gray-50 px-3 py-3 text-sm text-gray-900 sm:grid-cols-[180px_1fr] sm:items-center">
+      <span className="font-semibold">{label}</span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value as ProfileGroupVisibility)}
+        className="w-full rounded-xl bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-emerald-100"
+      >
+        <option value="contacts">{labelProfileVisibility("contacts")}</option>
+        <option value="everyone">{labelProfileVisibility("everyone")}</option>
+        <option value="private">{labelProfileVisibility("private")}</option>
+      </select>
+    </label>
+  );
+}
+
+function PrivacyCheckbox({ checked, onChange, className = "" }: { checked: boolean; onChange: (checked: boolean) => void; className?: string }) {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onChange(!checked);
+      }}
+      className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition ${
+        checked ? "border-[#32CD32] bg-[#32CD32] text-white" : "border-slate-300 bg-white text-transparent"
+      } ${className}`.trim()}
+    >
+      <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="m4 10 4 4 8-8" />
+      </svg>
+    </button>
   );
 }

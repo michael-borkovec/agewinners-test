@@ -230,6 +230,30 @@ app/
 
 
 
+  social/
+
+    page.tsx — kontakt a veřejné odkazy:
+
+      - ukládá web, veřejný e-mail a sociální profily
+
+      - používá updateMyPersonalProfile
+
+      - každé kontaktní pole má vlastní *_hidden privacy flag
+
+
+
+  security/
+
+    page.tsx — účet a bezpečnost:
+
+      - zobrazuje e-mail, metodu přihlášení a poslední přihlášení
+
+      - umožňuje změnu hesla přes Supabase Auth
+
+      - obsahuje první verzi bezpečnostního checklistu
+
+
+
 components/
 
 &#x20; AuthShell.tsx — hlavní authenticated shell:

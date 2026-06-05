@@ -17,6 +17,7 @@
 
 import { supabase } from "@/lib/supabaseClient";
 import { getLegacyPhotoCategoryFromTags, normalizeImageTags } from "@/lib/api/posts";
+import { normalizeAwDirectionKeys, type AwDirectionKey } from "@/lib/awDirections";
 import { prepareImageUploadVariants } from "@/lib/image/clientImage";
 
 const BUCKET = "post-images";
@@ -26,6 +27,7 @@ export type UploadAndCreateImageParams = {
   takenAt: string; // required (YYYY-MM-DD)
   photoCategory?: string;
   photoTags?: string[];
+  awDirections?: AwDirectionKey[];
   includeInGlobalAw: boolean;
   comment?: string | null;
   onProgress?: (state: { percent: number; label: string }) => void;
@@ -80,6 +82,10 @@ function toMessage(err: any): string {
 
 function isMissingImageTagsTable(err: any): boolean {
   return Boolean(err?.message?.includes("Could not find the table 'public.image_tags'"));
+}
+
+function isMissingImageAwDirectionsTable(err: any): boolean {
+  return Boolean(err?.message?.includes("Could not find the table 'public.image_aw_directions'"));
 }
 
 async function uploadPreparedVariant(path: string, file: File) {
@@ -141,10 +147,11 @@ async function prepareAndUploadImageVariants(params: {
 }
 
 export async function uploadAndCreateImage(params: UploadAndCreateImageParams) {
-  const { file, takenAt, photoCategory, photoTags = [], includeInGlobalAw, comment, onProgress } = params;
+  const { file, takenAt, photoCategory, photoTags = [], awDirections = [], includeInGlobalAw, comment, onProgress } = params;
   const reportProgress = (percent: number, label: string) => onProgress?.({ percent, label });
   const normalizedTags = normalizeImageTags([...photoTags, photoCategory]);
   const finalTags = normalizedTags;
+  const finalDirections = normalizeAwDirectionKeys(awDirections);
   const legacyPhotoCategory = getLegacyPhotoCategoryFromTags(finalTags);
 
   reportProgress(5, "Kontroluji fotku");
@@ -225,6 +232,18 @@ export async function uploadAndCreateImage(params: UploadAndCreateImageParams) {
       throw new Error(toMessage(tagErr));
     }
   }
+  if (Number.isFinite(imageId) && finalDirections.length > 0) {
+    const { error: directionErr } = await supabase.from("image_aw_directions").insert(
+      finalDirections.map((directionKey) => ({
+        image_id: imageId,
+        direction_key: directionKey,
+      }))
+    );
+
+    if (directionErr && !isMissingImageAwDirectionsTable(directionErr)) {
+      throw new Error(toMessage(directionErr));
+    }
+  }
   reportProgress(100, "Fotka je nahrana");
   return inserted as any;
 }
@@ -251,7 +270,20 @@ export async function getMyImageForEdit(imageId: number) {
     ? normalizeImageTags([(data as any)?.photo_category])
     : normalizeImageTags((tagRows ?? []).map((row: any) => row.tag));
 
-  return { ...(data as any), tags };
+  const { data: directionRows, error: directionErr } = await supabase
+    .from("image_aw_directions")
+    .select("direction_key")
+    .eq("image_id", imageId);
+
+  if (directionErr && !isMissingImageAwDirectionsTable(directionErr)) {
+    throw new Error(toMessage(directionErr));
+  }
+
+  const aw_directions = directionErr
+    ? []
+    : normalizeAwDirectionKeys((directionRows ?? []).map((row: any) => row.direction_key));
+
+  return { ...(data as any), tags, aw_directions };
 }
 
 export async function updateMyImageFile(params: {
@@ -320,13 +352,15 @@ export async function updateMyImageMetadata(params: {
   takenAt: string;
   photoCategory?: string;
   photoTags?: string[];
+  awDirections?: AwDirectionKey[];
   includeInGlobalAw: boolean;
   comment?: string | null;
 }) {
-  const { imageId, takenAt, photoCategory, photoTags = [], includeInGlobalAw, comment } = params;
+  const { imageId, takenAt, photoCategory, photoTags = [], awDirections = [], includeInGlobalAw, comment } = params;
   const takenISO = normalizeDateISO(takenAt);
   const normalizedTags = normalizeImageTags([...photoTags, photoCategory]);
   const finalTags = normalizedTags;
+  const finalDirections = normalizeAwDirectionKeys(awDirections);
   const legacyPhotoCategory = getLegacyPhotoCategoryFromTags(finalTags);
 
   if (!takenISO || !/^\d{4}-\d{2}-\d{2}$/.test(takenISO)) {
@@ -361,6 +395,20 @@ export async function updateMyImageMetadata(params: {
     );
 
     if (insertTagErr && !isMissingImageTagsTable(insertTagErr)) throw new Error(toMessage(insertTagErr));
+  }
+
+  const { error: deleteDirectionErr } = await supabase.from("image_aw_directions").delete().eq("image_id", imageId);
+  if (deleteDirectionErr && !isMissingImageAwDirectionsTable(deleteDirectionErr)) throw new Error(toMessage(deleteDirectionErr));
+
+  if (!deleteDirectionErr && finalDirections.length > 0) {
+    const { error: insertDirectionErr } = await supabase.from("image_aw_directions").insert(
+      finalDirections.map((directionKey) => ({
+        image_id: imageId,
+        direction_key: directionKey,
+      }))
+    );
+
+    if (insertDirectionErr && !isMissingImageAwDirectionsTable(insertDirectionErr)) throw new Error(toMessage(insertDirectionErr));
   }
   return data as any;
 }

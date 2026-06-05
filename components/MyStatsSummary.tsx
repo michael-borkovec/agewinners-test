@@ -17,15 +17,17 @@ import { usePathname } from "next/navigation";
 import {
   getMyAwAgeCurrentSafe,
   getMyPowerScoreSafe,
+  getMyStatsProgress30dSafe,
   getMyStatsSafe,
   type MyAwAgeCurrent,
+  type MyStatsProgress30d,
   type MyStats,
   type PowerScore,
 } from "@/lib/api/stats";
 
 function buildAwSummary(rawAwScoreNormPct: number | null | undefined, awAge: number | null | undefined) {
   if (rawAwScoreNormPct == null || Number.isNaN(Number(rawAwScoreNormPct)) || awAge == null || Number.isNaN(Number(awAge))) {
-    return "Tvoje AW statistiky se ještě dopočítávají.";
+    return "Tvůj AW vývoj se ještě dopočítává.";
   }
 
   const score = Number(rawAwScoreNormPct);
@@ -55,6 +57,7 @@ export default function MyStatsSummary() {
   const [stats, setStats] = useState<MyStats | null>(null);
   const [awCurrent, setAwCurrent] = useState<MyAwAgeCurrent | null>(null);
   const [powerScore, setPowerScore] = useState<PowerScore | null>(null);
+  const [progress30d, setProgress30d] = useState<MyStatsProgress30d | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [awErr, setAwErr] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -63,7 +66,12 @@ export default function MyStatsSummary() {
     let cancelled = false;
 
     async function load() {
-      const [statsRes, awRes, powerRes] = await Promise.all([getMyStatsSafe(), getMyAwAgeCurrentSafe(), getMyPowerScoreSafe()]);
+      const [statsRes, awRes, powerRes, progressRes] = await Promise.all([
+        getMyStatsSafe(),
+        getMyAwAgeCurrentSafe(),
+        getMyPowerScoreSafe(),
+        getMyStatsProgress30dSafe(),
+      ]);
 
       if (cancelled) return;
 
@@ -84,6 +92,7 @@ export default function MyStatsSummary() {
       }
 
       setPowerScore(powerRes.data ?? null);
+      setProgress30d(progressRes.data ?? null);
     }
 
     void load();
@@ -106,8 +115,7 @@ export default function MyStatsSummary() {
     () => buildAwSummary(stats?.awScoreNormPct ?? null, summaryAwAge),
     [summaryAwAge, stats?.awScoreNormPct]
   );
-  const isStatsPage = Boolean(pathname?.startsWith("/stats"));
-  const showDetails = isStatsPage || detailsOpen;
+  const showDetails = detailsOpen;
   const realAge = typeof awCurrent?.real_age === "number" && Number.isFinite(awCurrent.real_age) ? awCurrent.real_age : null;
   const avgAccuracyPct =
     typeof stats?.avgAccuracyPct === "number" && Number.isFinite(stats.avgAccuracyPct) ? stats.avgAccuracyPct : null;
@@ -115,22 +123,32 @@ export default function MyStatsSummary() {
     typeof powerScore?.p_score === "number" && Number.isFinite(powerScore.p_score) ? powerScore.p_score : null;
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+    <div>
       {err ? <div className="text-sm text-rose-700">{err}</div> : null}
       <div className="space-y-4 text-sm text-slate-700">
         {stats ? (
-          <div className="rounded-lg border border-emerald-100 bg-emerald-50 text-emerald-950">
+          <div className="rounded-2xl bg-gradient-to-br from-[#effdef] via-white to-white text-emerald-950 shadow-[0_10px_28px_rgba(50,205,50,0.14)]">
             <button
               type="button"
               onClick={() => setDetailsOpen((value) => !value)}
-              className="block w-full rounded-lg px-3 py-3 text-left text-sm font-semibold transition hover:bg-emerald-100/60 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+              className="flex w-full items-start justify-between gap-3 rounded-2xl px-3 py-3 text-left text-sm font-semibold transition hover:bg-[#effdef]/80 focus:outline-none focus:ring-2 focus:ring-[#98f398]"
               aria-expanded={showDetails}
             >
-              {summaryText}
+              <span>{summaryText}</span>
+              <span
+                className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#32CD32] text-white shadow-sm transition ${
+                  showDetails ? "rotate-180" : ""
+                }`}
+                aria-hidden="true"
+              >
+                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none">
+                  <path d="M5 8l5 5 5-5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
             </button>
             {awErr ? <div className="mt-1 text-xs font-medium text-rose-700">RPC chyba: {awErr}</div> : null}
             {showDetails ? (
-              <div className="border-t border-emerald-100 px-3 py-3">
+              <div className="space-y-3 px-3 py-3">
                 <div className="grid gap-2">
                   <SummaryDetailLink
                     href="/stats?section=aw-age"
@@ -143,34 +161,93 @@ export default function MyStatsSummary() {
                     label="AW skóre"
                     value={formatAwScoreForUi(stats.awScoreNormPct)}
                   />
-                  <SummaryDetailRow label="Power skóre" value={powerScoreValue !== null ? powerScoreValue.toFixed(1) : "—"} />
+                  <SummaryDetailLink
+                    href="/stats?section=power-score"
+                    label="Power skóre"
+                    value={powerScoreValue !== null ? powerScoreValue.toFixed(1) : "—"}
+                  />
                   <SummaryDetailLink
                     href="/stats?section=my-tips"
                     label="Přesnost tipů"
                     value={avgAccuracyPct !== null ? `${avgAccuracyPct.toFixed(1)} %` : "—"}
                   />
                 </div>
+                <AwProgressMiniCard progress={progress30d} />
+                <Link
+                  href="/stats"
+                  title="Můj vývoj"
+                  aria-label="Můj vývoj"
+                  className="flex items-center justify-center gap-3 rounded-2xl bg-white px-3 py-3 text-center text-slate-900 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-slate-300 md:flex-col"
+                >
+                  <img src="/icons/nav/stats.svg" alt="" className="h-10 w-10 shrink-0" />
+                  <div className="text-sm font-semibold">Můj vývoj</div>
+                </Link>
               </div>
             ) : null}
           </div>
         ) : !err ? (
-          <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-3 text-sm text-slate-600">Načítám AW souhrn…</div>
+          <div className="rounded-lg bg-slate-50 px-3 py-3 text-sm text-slate-600">Načítám AW souhrn…</div>
         ) : null}
 
-        <Link
-          href="/stats"
-          title="Moje statistiky"
-          aria-label="Moje statistiky"
-          className={[
-            "flex items-center justify-center gap-3 rounded-2xl border px-3 py-3 text-center transition focus:outline-none focus:ring-2 focus:ring-slate-300 md:flex-col",
-            isStatsPage ? "border-emerald-200 bg-emerald-50 text-emerald-950" : "border-gray-200 bg-white text-slate-900 hover:bg-gray-50",
-          ].join(" ")}
-        >
-          <img src="/ui/Statistiky.ico" alt="" className="h-10 w-10 shrink-0" />
-          <div className="text-sm font-semibold">Moje statistiky</div>
-        </Link>
-
       </div>
+    </div>
+  );
+}
+
+function formatSignedDelta(value: number | null, decimals: number, suffix = "") {
+  if (value === null) return null;
+  if (Math.abs(value) < 0.05) return "beze změny";
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${value.toFixed(decimals)}${suffix}`;
+}
+
+function progressTone(value: number | null) {
+  return value !== null && value > 0 ? "text-emerald-700" : "text-slate-900";
+}
+
+function AwProgressMiniCard({ progress }: { progress: MyStatsProgress30d | null }) {
+  if (!progress) return null;
+
+  const items = [
+    {
+      label: "AW věk",
+      value: formatSignedDelta(progress.awAgeDelta30d, 1, " roku"),
+      tone: progressTone(null),
+    },
+    {
+      label: "Power skóre",
+      value: formatSignedDelta(progress.powerDelta30d, 0),
+      tone: progressTone(progress.powerDelta30d),
+    },
+    {
+      label: "Přesnost",
+      value: formatSignedDelta(progress.accuracyDelta30d, 1, " %"),
+      tone: progressTone(progress.accuracyDelta30d),
+    },
+    {
+      label: "Hlasy",
+      value: progress.receivedVotes30d !== null ? String(progress.receivedVotes30d) : null,
+      tone: progress.receivedVotes30d && progress.receivedVotes30d > 0 ? "text-emerald-700" : "text-slate-900",
+    },
+  ].filter((item) => item.value !== null);
+
+  if (items.length === 0) return null;
+
+  return (
+    <div className="rounded-xl bg-white/80 px-3 py-3">
+      <div className="flex items-baseline justify-between gap-2">
+        <div className="text-xs font-bold text-emerald-950">Posledních 30 dní</div>
+        {!progress.hasHistoryComparison ? <div className="text-[11px] font-semibold text-slate-500">Zatím málo dat</div> : null}
+      </div>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        {items.map((item) => (
+          <div key={item.label} className="rounded-lg bg-[#effdef] px-2.5 py-2">
+            <div className="text-[11px] font-semibold text-emerald-900">{item.label}</div>
+            <div className={`mt-0.5 text-sm font-black ${item.tone}`}>{item.value}</div>
+          </div>
+        ))}
+      </div>
+      {!progress.hasHistoryComparison ? <div className="mt-2 text-[11px] font-medium text-slate-500">Vývoj se ještě sbírá.</div> : null}
     </div>
   );
 }
@@ -192,3 +269,6 @@ function SummaryDetailLink({ href, label, value }: { href: string; label: string
     </Link>
   );
 }
+
+
+

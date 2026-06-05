@@ -1,4 +1,4 @@
-/**
+﻿/**
  * File purpose
  * - Public "O nás" information page
  * - Presents the AgeWinners mission with supporting images
@@ -9,7 +9,7 @@ import Image from "next/image";
 
 export default function AboutPage() {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="rounded-lg bg-white p-6">
       <div className="max-w-3xl space-y-5">
         <h1 className="text-2xl font-bold text-slate-900">O nás</h1>
 
@@ -64,3 +64,4 @@ export default function AboutPage() {
     </div>
   );
 }
+

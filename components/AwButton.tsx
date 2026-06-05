@@ -1,4 +1,4 @@
-/**
+﻿/**
  * File purpose
  * - Shared AgeWinners button component for primary, secondary, and tertiary actions.
  * Main responsibilities
@@ -25,8 +25,8 @@ const baseClass =
   "inline-flex items-center justify-center rounded-lg font-semibold transition focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-55";
 
 const variantClass: Record<AwButtonVariant, string> = {
-  primary: "bg-emerald-600 text-white shadow-sm hover:bg-emerald-700",
-  secondary: "bg-emerald-50 text-emerald-900 hover:bg-emerald-100",
+  primary: "bg-[#32CD32] text-white shadow-sm hover:bg-[#28b828]",
+  secondary: "bg-[#effdef] text-emerald-900 hover:bg-[#dcfbdc]",
   tertiary: "bg-transparent text-slate-600 underline underline-offset-4 hover:text-slate-900 hover:bg-transparent focus:ring-slate-200",
 };
 
@@ -43,3 +43,5 @@ export default function AwButton({ variant = "secondary", size = "md", className
     </button>
   );
 }
+
+

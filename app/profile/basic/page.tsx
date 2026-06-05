@@ -11,8 +11,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import AwInvitesCard from "@/components/AwInvitesCard";
 import EmojiTextarea from "@/components/EmojiTextarea";
 import { awAlert, awConfirm } from "@/components/AwDialog";
+import { ProfileHero, ProfileSectionCard } from "@/app/profile/components/ProfileSurface";
 import type { MyProfile } from "@/lib/api/userProfiles";
 import {
   getMyProfile,
@@ -254,24 +256,22 @@ export default function BasicProfilePage() {
   const avatarPreviewUrl = addCacheBust(avatarUrl, avatarBust);
 
   return (
-    <div className="mx-auto max-w-4xl p-6">
-      <div className="rounded-2xl bg-white p-5 shadow">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-lg font-semibold text-slate-900">Základní profil</h1>
-            <p className="mt-1 text-sm text-slate-600">
-              Uprav si jméno, veřejné bio, bio pro svoji síť a avatar. Nastavení viditelnosti najdeš v sekci Privacy.
-            </p>
-          </div>
+    <div className="mx-auto max-w-4xl space-y-5 p-6">
+      <ProfileHero
+        title="Profilová karta"
+        description="Tady ladíš první dojem: fotku, jméno a krátký text, který uvidí ostatní v profilu i v navigaci."
+        actions={
+          isSuperUser ? (
+            <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">SuperUser</span>
+          ) : null
+        }
+      />
 
-          {isSuperUser ? (
-            <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
-              SuperUser
-            </span>
-          ) : null}
-        </div>
-
-        <div className="mt-5 flex items-center gap-4">
+      <ProfileSectionCard
+        title="Základní údaje"
+        description="Veřejnou část nech krátkou a čitelnou. Detailnější informace patří do sekce O mně. Datum narození je jen pro informaci a běžný uživatel ho nemůže měnit, protože je navázané na výpočty skutečného věku, AW věku, historické statistiky a vyhodnocení fotek v čase. Kdyby se datum měnilo volně, starší výsledky by mohly přestat dávat smysl."
+      >
+        <div className="flex items-center gap-4">
           <div ref={avatarMenuRef} className="relative">
             <input
               ref={avatarFileInputRef}
@@ -305,7 +305,7 @@ export default function BasicProfilePage() {
             </button>
 
             {avatarMenuOpen ? (
-              <div className="absolute left-0 top-full z-20 mt-2 min-w-[220px] rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+              <div className="absolute left-0 top-full z-20 mt-2 min-w-[220px] rounded-2xl bg-white p-2 shadow-xl">
                 <button
                   type="button"
                   onClick={() => {
@@ -375,19 +375,16 @@ export default function BasicProfilePage() {
             />
           </label>
 
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <div className="rounded-xl bg-slate-50 p-3">
             <div className="text-sm font-medium text-slate-800">Datum narození</div>
 
             <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
-              <label className="grid gap-1">
-                <span className="text-xs font-medium text-slate-700">
-                  {isSuperUser ? "SuperUser: můžeš upravit" : "Jen pro informaci, nelze měnit"}
-                </span>
+              <label>
                 <input
                   type="date"
                   value={dobDraft}
                   onChange={(e) => setDobDraft(e.target.value)}
-                  className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500 disabled:bg-slate-100"
+                  className="w-full rounded-xl bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-100 disabled:bg-slate-100"
                   disabled={!isSuperUser || saving}
                 />
               </label>
@@ -397,16 +394,13 @@ export default function BasicProfilePage() {
                   type="button"
                   onClick={handleSaveDob}
                   disabled={saving}
-                  className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                  className="rounded-xl bg-[#32CD32] px-4 py-2 text-sm font-semibold text-white hover:bg-[#28b828] disabled:opacity-60"
                 >
                   Uložit datum narození
                 </button>
               ) : null}
             </div>
 
-            <div className="mt-2 text-xs text-slate-600">
-              Aktuálně v profilu: <span className="font-semibold">{formatDobCZ(dobFromDb)}</span>
-            </div>
           </div>
 
           <div className="flex items-center gap-3">
@@ -414,12 +408,16 @@ export default function BasicProfilePage() {
               type="button"
               onClick={handleSaveBasic}
               disabled={saving || avatarUploading}
-              className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+              className="rounded-xl bg-[#32CD32] px-4 py-2 text-sm font-semibold text-white hover:bg-[#28b828] disabled:opacity-60"
             >
               {saving ? "Ukládám..." : "Uložit profil"}
             </button>
           </div>
         </div>
+      </ProfileSectionCard>
+
+      <div>
+        <AwInvitesCard />
       </div>
     </div>
   );

@@ -18,19 +18,29 @@ type AuthContextValue = {
   session: Session | null;
   userId: string | null;
   isLoggedIn: boolean;
+  isPrivilegedViewer: boolean;
 };
 
 const AuthContext = createContext<AuthContextValue>({
   session: null,
   userId: null,
   isLoggedIn: false,
+  isPrivilegedViewer: false,
 });
 
-export function AuthProvider({ session, children }: { session: Session | null; children: React.ReactNode }) {
+export function AuthProvider({
+  session,
+  isPrivilegedViewer = false,
+  children,
+}: {
+  session: Session | null;
+  isPrivilegedViewer?: boolean;
+  children: React.ReactNode;
+}) {
   const value = useMemo<AuthContextValue>(() => {
     const userId = session?.user?.id ?? null;
-    return { session, userId, isLoggedIn: !!userId };
-  }, [session]);
+    return { session, userId, isLoggedIn: !!userId, isPrivilegedViewer };
+  }, [isPrivilegedViewer, session]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

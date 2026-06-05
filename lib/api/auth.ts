@@ -23,8 +23,9 @@ export async function signUpWithEmail(params: {
   email: string;
   password: string;
   dateOfBirth: string;
+  referralSlug?: string | null;
 }): Promise<{ user: { id: string } | null }> {
-  const { email, password, dateOfBirth } = params;
+  const { email, password, dateOfBirth, referralSlug } = params;
 
   const { data, error } = await supabase.auth.signUp({
     email,
@@ -33,6 +34,7 @@ export async function signUpWithEmail(params: {
       emailRedirectTo: EMAIL_CONFIRM_REDIRECT,
       data: {
         date_of_birth: dateOfBirth,
+        referral_slug: referralSlug || undefined,
       },
     },
   });

@@ -26,6 +26,7 @@ export type NetworkUserLite = {
   bio: string | null;
   connection_since?: string | null;
   following_since?: string | null;
+  follows_me?: boolean;
   blocked_reason?: string | null;
   connections_count?: number;
   following_count?: number;
@@ -693,8 +694,12 @@ export async function listMyFollowers(): Promise<NetworkUserLite[]> {
   if (error) throw error;
 
   const ids = (data ?? []).map((row: any) => row.follower_id);
-  const profiles = await fetchProfiles(ids);
-  const users = ids.map((id) => profiles[id] ?? { user_id: id, display_name: null, avatar_url: null, bio: null });
+  const [profiles, followingMap] = await Promise.all([fetchProfiles(ids), getMyFollowingMap(me)]);
+  const users = ids.map((id) => ({
+    ...(profiles[id] ?? { user_id: id, display_name: null, avatar_url: null, bio: null }),
+    following_since: followingMap.get(id)?.created_at ?? null,
+    follows_me: true,
+  }));
 
   return enrichUsersWithNetworkMeta(me, users);
 }

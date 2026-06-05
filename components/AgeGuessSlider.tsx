@@ -204,7 +204,7 @@ export default function AgeGuessSlider({
           }}
           disabled={submitting || submitted}
           title={disabledFieldTitle}
-          className={`flex-1 ${submitted ? "cursor-not-allowed accent-slate-400 opacity-60" : "accent-emerald-600"}`}
+          className={`flex-1 ${submitted ? "cursor-not-allowed accent-slate-400 opacity-60" : "accent-[#32CD32]"}`}
         />
 
         <button
@@ -215,9 +215,9 @@ export default function AgeGuessSlider({
           title={submitTitle}
         >
           <img
-            src={submitDisabled ? "/faja-1-small-black.png" : "/faja-1-small.png"}
+            src="/icons/action/confirm-age-guess.svg"
             alt="Potvrdit tip"
-            className={`h-6 w-6 transition ${submitDisabled ? "opacity-40" : "hover:scale-110"}`}
+            className={`h-6 w-6 transition ${submitDisabled ? "grayscale opacity-35" : "hover:scale-110"}`}
           />
         </button>
       </div>

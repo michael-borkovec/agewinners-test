@@ -1,4 +1,4 @@
-/**
+﻿/**
  * File: app/profile/photos/posts/[postId]/page.tsx
  * Purpose:
  *   Otevřený post v /profile/photos → zobrazí pouze fotky daného postu.
@@ -227,7 +227,7 @@ export default function ProfilePostPhotosPage() {
       </div>
 
       {post?.text?.trim() ? (
-        <div className="mb-4 rounded-2xl border border-gray-200 bg-white p-4 text-sm text-gray-800 shadow-sm">
+        <div className="mb-4 rounded-2xl bg-white p-4 text-sm text-gray-800 shadow-sm">
           {post.text}
         </div>
       ) : null}
@@ -252,7 +252,7 @@ export default function ProfilePostPhotosPage() {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {photos.map((p) => (
-            <div key={p.id} className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div key={p.id} className="overflow-hidden rounded-2xl bg-white shadow-sm">
               <div className="flex h-48 items-center justify-center bg-gray-50">
                 {p.public_url ? (
                   <img
@@ -291,10 +291,10 @@ export default function ProfilePostPhotosPage() {
                 <div className="pt-1">
                   <button
                     type="button"
-                    onClick={() => void awAlert("Statistiky / editace fotky doplníme v další iteraci.")}
+                    onClick={() => void awAlert("Vývoj / editace fotky doplníme v další iteraci.")}
                     className="text-xs font-semibold text-emerald-700 hover:underline"
                   >
-                    Statistiky / editovat…
+                    Vývoj / editovat…
                   </button>
                 </div>
               </div>
@@ -305,3 +305,4 @@ export default function ProfilePostPhotosPage() {
     </section>
   );
 }
+

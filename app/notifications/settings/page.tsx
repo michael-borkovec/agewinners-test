@@ -1,146 +1,35 @@
-// app/notifications/settings/page.tsx
-// Popis: Sekce – Nastavení upozornění
+/**
+ * File purpose
+ * - Render the standalone notification settings page.
+ * Main responsibilities
+ * - Reuse the shared notification settings panel and provide a route fallback.
+ * - Keep the page usable from both Notifications and My Profile navigation.
+ * Related APIs, components, or modules
+ * - components/NotificationSettingsPanel.tsx
+ * - app/notifications/page.tsx
+ * - components/LeftSidebar.tsx
+ */
 
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import NotificationSettingsPanel from "@/components/NotificationSettingsPanel";
 import { PageSectionTitle } from "@/components/PageSectionTitle";
-import { awAlert } from "@/components/AwDialog";
-import { getMyProfile, updateMyPrivacySettings } from "@/lib/api/userProfiles";
-
-type NotificationToggleKey =
-  | "notifyConnectionRequests"
-  | "notifyConnectionDeclined"
-  | "notifyContactRemoved"
-  | "notifyFollowStarted"
-  | "notifyFollowStopped"
-  | "notifyPhotoCommented";
-
-const TOGGLES: Array<{ key: NotificationToggleKey; label: string; hint: string }> = [
-  { key: "notifyConnectionRequests", label: "Žádosti o spojení", hint: "Když ti někdo pošle novou žádost o spojení." },
-  { key: "notifyConnectionDeclined", label: "Zamítnuté žádosti", hint: "Když někdo zamítne tvoji žádost o spojení." },
-  { key: "notifyContactRemoved", label: "Odebrání ze spojení", hint: "Když tě někdo odstraní ze svých kontaktů." },
-  { key: "notifyFollowStarted", label: "Nové sledování", hint: "Když tě někdo začne sledovat." },
-  { key: "notifyFollowStopped", label: "Ukončené sledování", hint: "Když tě někdo přestane sledovat." },
-  { key: "notifyPhotoCommented", label: "Komentáře a odpovědi u fotky", hint: "Když někdo okomentuje tvoji fotku nebo odpoví na komentář u fotky." },
-];
 
 export default function NotificationSettingsPage() {
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [values, setValues] = useState<Record<NotificationToggleKey, boolean>>({
-    notifyConnectionRequests: true,
-    notifyConnectionDeclined: true,
-    notifyContactRemoved: true,
-    notifyFollowStarted: true,
-    notifyFollowStopped: true,
-    notifyPhotoCommented: true,
-  });
-
-  async function reload() {
-    setLoading(true);
-    try {
-      const profile = await getMyProfile();
-      const data = profile.data;
-      if (!data) throw new Error(profile.errorMessage ?? "Nastavení upozornění se nepodařilo načíst.");
-
-      setValues({
-        notifyConnectionRequests: Boolean(data.notifyConnectionRequests ?? true),
-        notifyConnectionDeclined: Boolean(data.notifyConnectionDeclined ?? true),
-        notifyContactRemoved: Boolean(data.notifyContactRemoved ?? true),
-        notifyFollowStarted: Boolean(data.notifyFollowStarted ?? true),
-        notifyFollowStopped: Boolean(data.notifyFollowStopped ?? true),
-        notifyPhotoCommented: Boolean(data.notifyPhotoCommented ?? true),
-      });
-    } catch (e: unknown) {
-      await awAlert(e instanceof Error ? e.message : "Nastavení upozornění se nepodařilo načíst.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    void reload();
-  }, []);
-
-  async function handleSave() {
-    setSaving(true);
-    try {
-      const result = await updateMyPrivacySettings(values);
-      if (result.errorMessage) throw new Error(result.errorMessage);
-      await awAlert("Nastavení upozornění uloženo.");
-    } catch (e: unknown) {
-      await awAlert(e instanceof Error ? e.message : "Nastavení upozornění se nepodařilo uložit.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
   return (
     <div className="mx-auto max-w-3xl p-6">
       <div className="rounded-2xl bg-white p-5 shadow">
-        <PageSectionTitle title="Nastavení upozornění" iconPath="/ui/Menu-upozorneni.ico" sizeClassName="text-[1.85rem]" />
-        <p className="mt-2 text-sm text-slate-600">
-          Vyber si, které události ti mají chodit do interních upozornění. Výchozí stav je zapnutý pro všechny.
-        </p>
-
-        <div className="mt-5 space-y-3">
-          {TOGGLES.map((toggle) => (
-            <label key={toggle.key} className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <input
-                type="checkbox"
-                checked={values[toggle.key]}
-                onChange={(e) =>
-                  setValues((prev) => ({
-                    ...prev,
-                    [toggle.key]: e.target.checked,
-                  }))
-                }
-                disabled={loading || saving}
-                className="mt-1 h-4 w-4 accent-emerald-600"
-              />
-              <div>
-                <div className="text-sm font-semibold text-slate-900">{toggle.label}</div>
-                <div className="mt-1 text-xs text-slate-600">{toggle.hint}</div>
-              </div>
-            </label>
-          ))}
+        <PageSectionTitle title="Nastavení upozornění" iconPath="/icons/nav/notifications.png" sizeClassName="text-[1.85rem]" />
+        <div className="mt-2">
+          <NotificationSettingsPanel />
         </div>
-
-        <div className="mt-6 flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={() => void handleSave()}
-            disabled={loading || saving}
-            className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
-          >
-            {saving ? "Ukládám..." : "Uložit"}
-          </button>
-          <button
-            type="button"
-            onClick={() => void reload()}
-            disabled={loading || saving}
-            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-          >
-            Obnovit
-          </button>
+        <div className="mt-6">
           <Link href="/notifications" className="text-sm font-medium text-emerald-700 hover:underline">
             Zpět na upozornění
           </Link>
         </div>
       </div>
-    </div>
-  );
-
-  return (
-    <div className="mx-auto max-w-3xl p-6">
-      <h1 className="mb-4 text-2xl font-semibold text-gray-900">
-        Nastavení upozornění
-      </h1>
-      <p className="text-sm text-gray-600">
-        Tady později přidáme detailní nastavení e-mailových a push notifikací.
-      </p>
     </div>
   );
 }

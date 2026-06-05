@@ -111,8 +111,8 @@ function buildTicks(min: number, max: number, count = 6): number[] {
   return Array.from(new Set(ticks));
 }
 
-export default function RealVsGuessedScatter(props: { tags: string[]; includeExperimental: boolean }) {
-  const { tags, includeExperimental } = props;
+export default function RealVsGuessedScatter(props: { tags: string[]; includeExperimental: boolean; refreshKey?: number }) {
+  const { tags, includeExperimental, refreshKey = 0 } = props;
   const [rows, setRows] = React.useState<RealVsGuessedRawRow[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -152,7 +152,7 @@ export default function RealVsGuessedScatter(props: { tags: string[]; includeExp
     return () => {
       cancelled = true;
     };
-  }, [tags, includeExperimental]);
+  }, [tags, includeExperimental, refreshKey]);
 
   const data = rows.map((row, idx) => {
     const aw = pickAwAge(row);
@@ -173,6 +173,7 @@ export default function RealVsGuessedScatter(props: { tags: string[]; includeExp
         <div className="text-sm font-semibold text-gray-900">Po jednotlivých fotkách</div>
         <HelpIconButton
           helpText={SCATTER_HELP_TEXT}
+          helpKey="photo-scatter"
           modalTitle="Nápověda - po jednotlivých fotkách"
           className="shrink-0 p-1"
           iconClassName="h-4 w-4"
@@ -183,7 +184,7 @@ export default function RealVsGuessedScatter(props: { tags: string[]; includeExp
 
   if (loading) {
     return (
-      <div className="rounded-2xl border border-gray-200 bg-white p-4">
+      <div className="rounded-2xl bg-white p-5">
         {renderHeader()}
         <div className="mt-4 rounded-2xl bg-slate-50 p-5 text-sm text-gray-600">Načítám graf…</div>
       </div>
@@ -192,7 +193,7 @@ export default function RealVsGuessedScatter(props: { tags: string[]; includeExp
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-gray-200 bg-white p-4">
+      <div className="rounded-2xl bg-white p-5">
         {renderHeader()}
         <div className="mt-4 rounded-2xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">{error}</div>
       </div>
@@ -201,7 +202,7 @@ export default function RealVsGuessedScatter(props: { tags: string[]; includeExp
 
   if (data.length === 0) {
     return (
-      <div className="rounded-2xl border border-gray-200 bg-white p-4">
+      <div className="rounded-2xl bg-white p-5">
         {renderHeader()}
         <div className="mt-4 rounded-2xl bg-slate-50 p-5 text-sm text-gray-600">Zatím není co vykreslit.</div>
       </div>
@@ -245,7 +246,7 @@ export default function RealVsGuessedScatter(props: { tags: string[]; includeExp
   const modalScore = computeScorePct(modalReal, modalAw);
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4">
+    <div className="rounded-2xl bg-white p-5">
       {zoomOpen && zoomRow && modalUrl ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"

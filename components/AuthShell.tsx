@@ -73,11 +73,13 @@ type AppNavItem = {
 };
 
 const PROFILE_DROPDOWN_LINKS = [
-  { href: "/profile/basic", label: "Základní profil" },
+  { href: "/profile/basic", label: "Profilová karta" },
   { href: "/profile/as-seen", label: "Jak mě vidí ostatní" },
-  { href: "/profile/privacy", label: "Soukromí & personalizace" },
+  { href: "/profile/privacy", label: "Soukromí" },
   { href: "/notifications/settings", label: "Nastavení upozornění" },
-  { href: "/profile/personal", label: "Více o mě" },
+  { href: "/profile/social", label: "Sociální sítě" },
+  { href: "/profile/security", label: "Účet a bezpečnost" },
+  { href: "/profile/personal", label: "O mně" },
 ] as const;
 const INFO_LINKS = [
   { href: "/about", label: "O nás" },
@@ -85,14 +87,14 @@ const INFO_LINKS = [
   { href: "/privacy-terms", label: "Soukromí & podmínky" },
 ] as const;
 const APP_NAV_ITEMS: AppNavItem[] = [
-  { href: "/", label: "Feed", iconPath: "/ui/Menu-Feed.ico" },
-  { href: "/my-posts", label: "Moje posty", iconPath: "/ui/Menu-moje-posty.ico" },
-  { href: "/my-tips", label: "Moje tipy", iconPath: "/ui/Menu-Moje-tipy.ico" },
-  { href: "/my-albums", label: "Moje výzvy", iconPath: "/ui/Menu-Moje-alba.ico" },
-  { href: "/network", label: "Moje síť", iconPath: "/ui/Menu-Moje-sit.ico" },
-  { href: "/messages", label: "Zprávy", iconPath: "/ui/Menu-Zpravy.ico", badgeKey: "messages" },
-  { href: "/notifications", label: "Upozornění", iconPath: "/ui/Menu-upozorneni.ico", badgeKey: "notifications", badgeTone: "rose" },
-  { href: "/stats", label: "Statistiky", iconPath: "/ui/Statistiky.ico" },
+  { href: "/", label: "Feed", iconPath: "/icons/nav/feed.png" },
+  { href: "/my-posts", label: "Moje posty", iconPath: "/icons/nav/posts.png" },
+  { href: "/my-tips", label: "Moje tipy", iconPath: "/icons/nav/tips.png" },
+  { href: "/my-albums", label: "Moje výzvy", iconPath: "/icons/nav/challenges.png" },
+  { href: "/network", label: "Moje síť", iconPath: "/icons/nav/network.png" },
+  { href: "/messages", label: "Zprávy", iconPath: "/icons/nav/messages.png", badgeKey: "messages" },
+  { href: "/notifications", label: "Upozornění", iconPath: "/icons/nav/notifications.png", badgeKey: "notifications", badgeTone: "rose" },
+  { href: "/stats", label: "Můj vývoj", iconPath: "/icons/nav/stats.svg" },
 ];
 
 function canSeeAdminMenu(role: string | null | undefined) {
@@ -134,7 +136,7 @@ function BrandLogo({
         </button>
 
         <Link href="/" className="hidden items-center gap-2 transition hover:opacity-90 md:-ml-3 md:flex">
-          <Image src="/logo.png" alt="AgeWinners logo" width={90} height={90} priority style={{ width: "auto", height: "auto" }} />
+          <Image src="/logo.png" alt="AgeWinners logo" width={90} height={90} priority className="translate-y-2" style={{ width: "auto", height: "auto" }} />
           <span className="text-[1.88rem] font-semibold text-slate-800">AgeWinners</span>
         </Link>
 
@@ -157,7 +159,7 @@ function BrandLogo({
         </div>
       </div>
 
-      <nav className="ml-[86px] mt-[-6px] hidden flex-nowrap items-center gap-2 whitespace-nowrap text-[8px] italic leading-none text-slate-600 md:flex">
+      <nav className="ml-[90px] mt-[-6px] hidden flex-nowrap items-center gap-2 whitespace-nowrap text-[9.2px] italic leading-none text-slate-600 md:flex">
         {INFO_LINKS.map((item) => {
           const active = pathname === item.href;
           return (
@@ -191,6 +193,10 @@ function isPublicStandaloneRoute(pathname: string) {
   return isAuthEntryRoute(pathname) || pathname === "/forgot-password" || pathname === "/reset-password";
 }
 
+function isProfileSidebarRoute(pathname: string | null | undefined) {
+  return Boolean(pathname?.startsWith("/profile") || pathname === "/notifications/settings");
+}
+
 function initialsFromName(name: string | null | undefined) {
   const n = (name ?? "").trim();
   if (!n) return "U";
@@ -219,7 +225,7 @@ function HeaderAvatar({ avatarUrl, displayName }: { avatarUrl: string | null; di
 function NotificationsNavLink({ unreadCount }: { unreadCount: number }) {
   return (
     <Link className="relative rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100" href="/notifications">
-      UpozornÄ›nÃ­
+      Upozornění
       {unreadCount > 0 ? (
         <span className="ml-2 inline-flex min-w-[20px] items-center justify-center rounded-full bg-rose-600 px-1.5 py-0.5 text-[11px] font-bold text-white">
           {unreadCount > 99 ? "99+" : unreadCount}
@@ -232,9 +238,9 @@ function NotificationsNavLink({ unreadCount }: { unreadCount: number }) {
 function MessagesNavLink({ unreadCount }: { unreadCount: number }) {
   return (
     <Link className="relative rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100" href="/messages">
-      ZprÃ¡vy
+      Zprávy
       {unreadCount > 0 ? (
-        <span className="ml-2 inline-flex min-w-[20px] items-center justify-center rounded-full bg-emerald-600 px-1.5 py-0.5 text-[11px] font-bold text-white">
+        <span className="ml-2 inline-flex min-w-[20px] items-center justify-center rounded-full bg-[#32CD32] px-1.5 py-0.5 text-[11px] font-bold text-white">
           {unreadCount > 99 ? "99+" : unreadCount}
         </span>
       ) : null}
@@ -244,7 +250,7 @@ function MessagesNavLink({ unreadCount }: { unreadCount: number }) {
 
 function AppNavLink({ href, label, iconPath, badgeCount = 0, badgeTone = "emerald", pathname, onClick, compact = false }: AppNavLinkProps) {
   const isActive = isNavItemActive(pathname, href);
-  const badgeClass = badgeTone === "rose" ? "bg-rose-600 text-white" : "bg-emerald-600 text-white";
+  const badgeClass = badgeTone === "rose" ? "bg-rose-600 text-white" : "bg-[#32CD32] text-white";
   const layoutClass = compact
     ? "min-w-0 flex-row gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs"
     : "min-w-[84px] flex-col gap-1 rounded-xl px-3 py-2 text-center text-sm";
@@ -255,7 +261,7 @@ function AppNavLink({ href, label, iconPath, badgeCount = 0, badgeTone = "emeral
     <Link
       onClick={onClick}
       className={`relative inline-flex items-center justify-center font-medium transition ${layoutClass} ${
-        isActive ? "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200" : "text-slate-700 hover:bg-slate-100"
+        isActive ? "bg-[#effdef] text-emerald-800 shadow-[0_10px_24px_rgba(50,205,50,0.14)]" : "text-slate-700 hover:bg-slate-100"
       }`}
       href={href}
     >
@@ -783,7 +789,7 @@ export default function AuthShell({ children }: AuthShellProps) {
   }, [pathname]);
 
   const showSidebarOnMobile =
-    pathname === "/messages" || pathname === "/network" || pathname === "/stats" || Boolean(pathname?.startsWith("/profile"));
+    pathname === "/messages" || pathname === "/network" || pathname === "/stats" || isProfileSidebarRoute(pathname);
   const isAdminRoute = Boolean(pathname?.startsWith("/admin"));
 
   async function handleLogout() {
@@ -860,6 +866,7 @@ export default function AuthShell({ children }: AuthShellProps) {
 
   const avatarUrlBusted = addCacheBust(profile?.avatar_url ?? null, avatarBust);
   const profileForSidebar: SidebarProfile | null = profile ? { ...profile, avatar_url: avatarUrlBusted } : null;
+  const isPrivilegedViewer = Boolean(profile?.super_user) || profile?.role === "moderator" || profile?.role === "admin";
   const profileMenuLinks = canSeeAdminMenu(profile?.role ?? null)
     ? [...PROFILE_DROPDOWN_LINKS, { href: "/admin", label: "Administrace" as const }]
     : PROFILE_DROPDOWN_LINKS;
@@ -870,9 +877,9 @@ export default function AuthShell({ children }: AuthShellProps) {
 
   return (
     <AwDialogProvider>
-      <AuthProvider session={session}>
+      <AuthProvider session={session} isPrivilegedViewer={isPrivilegedViewer}>
         <div className="min-h-screen bg-slate-50" style={{ ["--aw-topbar-h" as any]: `${topbarH}px` }}>
-        <header ref={headerRef as any} className="sticky top-0 z-50 border-b border-slate-200 bg-white/90 backdrop-blur">
+        <header ref={headerRef as any} className="sticky top-0 z-50 bg-white/90 backdrop-blur">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-2 min-[380px]:gap-3 min-[380px]:px-4 md:gap-4 md:py-3">
             <BrandLogo
               pathname={pathname || "/"}
@@ -899,7 +906,7 @@ export default function AuthShell({ children }: AuthShellProps) {
               </button>
 
               {profileMenuOpen ? (
-                <div className="absolute right-0 top-full z-50 mt-2 min-w-[220px] rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+                <div className="absolute right-0 top-full z-50 mt-2 min-w-[220px] rounded-2xl bg-white p-2 shadow-xl">
                   {profileMenuLinks.map((item) => {
                     const active = pathname === item.href;
                     return (
@@ -963,7 +970,7 @@ export default function AuthShell({ children }: AuthShellProps) {
                 </button>
 
                 {profileMenuOpen ? (
-                  <div className="absolute right-0 top-full z-50 mt-2 min-w-[220px] rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+                  <div className="absolute right-0 top-full z-50 mt-2 min-w-[220px] rounded-2xl bg-white p-2 shadow-xl">
                     {profileMenuLinks.map((item) => {
                       const active = pathname === item.href;
                       return (

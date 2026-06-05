@@ -1,4 +1,4 @@
-/**
+﻿/**
  * File: components/StatBar.tsx
  *
  * Purpose:
@@ -24,7 +24,7 @@ export default function StatBar({
 
   return (
     <div
-      className="w-full rounded-full bg-slate-100 overflow-hidden border border-slate-200"
+      className="w-full rounded-full bg-slate-100 overflow-hidden"
       style={{ height }}
       aria-label={title}
       title={title}
@@ -40,3 +40,4 @@ export default function StatBar({
     </div>
   );
 }
+

@@ -8,6 +8,7 @@
  */
 
 import { supabase } from "@/lib/supabaseClient";
+import { getMyReferralBonusScore } from "@/lib/api/referrals";
 
 export type CategoryFilter =
   | "all"
@@ -81,6 +82,37 @@ export type CreditsBreakdown = {
 
 export type PowerScore = CreditsBreakdown;
 
+export type PowerScoreBreakdown = {
+  powerScore: number | null;
+  level: string;
+  nextLevel: string | null;
+  nextLevelAt: number | null;
+  progressToNextLevelPct: number;
+  revealDelayDays: number | null;
+  parts: {
+    tipping: number | null;
+    accuracy: number | null;
+    activeDays: number | null;
+    uploads: number | null;
+    streak: number | null;
+    referrals: number | null;
+    penalties: number | null;
+  };
+  raw?: {
+    guessesPublic90d?: number;
+    guessesAnonymous90d?: number;
+    avgAcc90d?: number;
+    activeDays90d?: number;
+    uploads90d?: number;
+    uploads30d?: number;
+    rejectedPhotos360d?: number;
+    currentStreakDays?: number;
+    tipsToday?: number;
+    streakDoneToday?: boolean;
+    referralBonus?: number;
+  };
+};
+
 export type SafeResult<T> = {
   data: T | null;
   errorMessage: string | null;
@@ -132,11 +164,29 @@ export type MyCredits = {
 
 export async function getMyCreditsSafe(): Promise<SafeResult<MyCredits>> {
   try {
-    const { data, error } = await supabase.rpc("get_my_power_score");
+    const [{ data, error }, referralBonusResult] = await Promise.all([
+      supabase.rpc("get_my_power_score"),
+      getMyReferralBonusScore().then(
+        (value) => ({ value, error: null as string | null }),
+        (err: unknown) => ({ value: 0, error: err instanceof Error ? err.message : "Referral bonus unavailable" })
+      ),
+    ]);
     if (error) return { data: null, errorMessage: error.message };
 
     const normalized = Array.isArray(data) ? (data[0] ?? null) : (data ?? null);
-    const bd = normalized as CreditsBreakdown | null;
+    const baseBreakdown = normalized as CreditsBreakdown | null;
+    const referralBonus = referralBonusResult.value;
+    const basePower = typeof baseBreakdown?.p_score === "number" && Number.isFinite(baseBreakdown.p_score) ? baseBreakdown.p_score : null;
+    const existingReferralBonus =
+      typeof baseBreakdown?.b_score === "number" && Number.isFinite(baseBreakdown.b_score) ? baseBreakdown.b_score : 0;
+    const bonusToAdd = existingReferralBonus > 0 ? 0 : referralBonus;
+    const bd = baseBreakdown
+      ? {
+          ...baseBreakdown,
+          b_score: existingReferralBonus > 0 ? existingReferralBonus : referralBonus,
+          p_score: basePower !== null ? basePower + bonusToAdd : baseBreakdown.p_score,
+        }
+      : null;
 
     const creditsTotal =
       bd && typeof bd.p_score === "number" && Number.isFinite(bd.p_score) ? bd.p_score : bd && bd.p_score === 0 ? 0 : null;
@@ -153,6 +203,216 @@ export async function getMyCreditsSafe(): Promise<SafeResult<MyCredits>> {
 export async function getMyPowerScoreSafe(): Promise<SafeResult<PowerScore>> {
   const res = await getMyCreditsSafe();
   return { data: res.data?.breakdown ?? null, errorMessage: res.errorMessage };
+}
+
+const POWER_LEVELS: Array<{ label: string; min: number; revealDelayDays: number | null }> = [
+  { label: "Nováček", min: 0, revealDelayDays: 10 },
+  { label: "Objevitel", min: 50, revealDelayDays: 8 },
+  { label: "Přispěvatel", min: 150, revealDelayDays: 5 },
+  { label: "Tvůrce", min: 350, revealDelayDays: 3 },
+  { label: "Lídr AW", min: 700, revealDelayDays: 1 },
+];
+
+function toFiniteNumber(value: unknown): number | null {
+  const numeric = typeof value === "number" ? value : value == null ? Number.NaN : Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function daysAgoIso(days: number, from = new Date()) {
+  const date = new Date(from);
+  date.setDate(date.getDate() - days);
+  return date.toISOString();
+}
+
+function startOfLocalDayIso(date = new Date()) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).toISOString();
+}
+
+function isoDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function countCurrentTipStreak(createdAtRows: Array<{ created_at?: string | null }>, now = new Date()) {
+  const days = new Set<string>();
+  for (const row of createdAtRows) {
+    const date = row.created_at ? new Date(row.created_at) : null;
+    if (!date || Number.isNaN(date.getTime())) continue;
+    days.add(isoDateKey(date));
+  }
+
+  const cursor = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (!days.has(isoDateKey(cursor))) {
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  let streak = 0;
+  while (days.has(isoDateKey(cursor))) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  return streak;
+}
+
+function getPowerLevel(powerScore: number | null) {
+  const score = Math.max(0, powerScore ?? 0);
+  const currentIndex = POWER_LEVELS.reduce((activeIndex, level, index) => (score >= level.min ? index : activeIndex), 0);
+  const current = POWER_LEVELS[currentIndex];
+  const next = POWER_LEVELS[currentIndex + 1] ?? null;
+  const previousMin = current.min;
+  const nextMin = next?.min ?? null;
+  const progressToNextLevelPct =
+    nextMin === null ? 100 : Math.max(0, Math.min(100, ((score - previousMin) / Math.max(1, nextMin - previousMin)) * 100));
+
+  return {
+    level: current.label,
+    nextLevel: next?.label ?? null,
+    nextLevelAt: nextMin,
+    progressToNextLevelPct,
+    revealDelayDays: current.revealDelayDays,
+  };
+}
+
+function awAccuracyFromGuess(guessAge: number, realAge: number) {
+  const maxError = Math.max(realAge - 16, 116 - realAge);
+  if (!Number.isFinite(maxError) || maxError <= 0) return null;
+  return Math.max(0, Math.min(100, 100 * (1 - Math.abs(guessAge - realAge) / maxError)));
+}
+
+export async function getMyPowerScoreBreakdown(): Promise<PowerScoreBreakdown> {
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError) throw new Error(authError.message);
+  if (!user?.id) throw new Error("Uživatel není přihlášen.");
+
+  const now = new Date();
+  const ninetyDaysAgoIso = daysAgoIso(90, now);
+  const thirtyDaysAgoIso = daysAgoIso(30, now);
+  const threeSixtyDaysAgoIso = daysAgoIso(360, now);
+  const todayStartIso = startOfLocalDayIso(now);
+
+  const [powerRes, guessRowsRes, uploadRowsRes, uploadRows30dRes] = await Promise.all([
+    getMyPowerScoreSafe(),
+    supabase
+      .from("age_guesses")
+      .select("image_id, guessed_age, is_anonymous, created_at")
+      .eq("guesser_user_id", user.id)
+      .gte("created_at", ninetyDaysAgoIso)
+      .order("created_at", { ascending: false })
+      .limit(2000),
+    supabase.from("images").select("id", { count: "exact", head: true }).eq("uploader_user_id", user.id).gte("created_at", ninetyDaysAgoIso),
+    supabase.from("images").select("id", { count: "exact", head: true }).eq("uploader_user_id", user.id).gte("created_at", thirtyDaysAgoIso),
+  ]);
+
+  if (powerRes.errorMessage) throw new Error(powerRes.errorMessage);
+  if (guessRowsRes.error) throw new Error(guessRowsRes.error.message);
+  if (uploadRowsRes.error) throw new Error(uploadRowsRes.error.message);
+  if (uploadRows30dRes.error) throw new Error(uploadRows30dRes.error.message);
+
+  const guessRows = (guessRowsRes.data ?? []) as Array<Record<string, unknown>>;
+  const imageIds = Array.from(
+    new Set(guessRows.map((row) => Number(row.image_id ?? 0)).filter((id) => Number.isFinite(id) && id > 0))
+  );
+
+  const realAgeByImageId = new Map<number, number>();
+  if (imageIds.length > 0) {
+    const { data: imageRows, error: imageError } = await supabase.from("images").select("id, real_age_years").in("id", imageIds);
+    if (imageError) throw new Error(imageError.message);
+
+    for (const row of (imageRows ?? []) as Array<Record<string, unknown>>) {
+      const imageId = Number(row.id ?? 0);
+      const realAge = Number(row.real_age_years ?? NaN);
+      if (Number.isFinite(imageId) && imageId > 0 && Number.isFinite(realAge)) {
+        realAgeByImageId.set(imageId, realAge);
+      }
+    }
+  }
+
+  const guessesPublic90d = guessRows.filter((row) => row.is_anonymous !== true).length;
+  const guessesAnonymous90d = guessRows.filter((row) => row.is_anonymous === true).length;
+  const activeDays90d = new Set(
+    guessRows
+      .map((row) => (row.created_at ? String(row.created_at).slice(0, 10) : ""))
+      .filter(Boolean)
+  ).size;
+  const tipsToday = guessRows.filter((row) => {
+    const createdAt = row.created_at ? new Date(String(row.created_at)).getTime() : Number.NaN;
+    return Number.isFinite(createdAt) && createdAt >= new Date(todayStartIso).getTime();
+  }).length;
+
+  const accuracies = guessRows
+    .map((row) => {
+      const imageId = Number(row.image_id ?? 0);
+      const guessAge = Number(row.guessed_age ?? NaN);
+      const realAge = realAgeByImageId.get(imageId);
+      return Number.isFinite(guessAge) && typeof realAge === "number" ? awAccuracyFromGuess(guessAge, realAge) : null;
+    })
+    .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+  const avgAcc90d = accuracies.length > 0 ? accuracies.reduce((sum, value) => sum + value, 0) / accuracies.length : undefined;
+
+  const rejectedPhotos360d = await (async () => {
+    const { count, error } = await supabase
+      .from("image_moderation_events")
+      .select("id", { count: "exact", head: true })
+      .eq("uploader_user_id", user.id)
+      .eq("event_type", "rejected_and_deleted")
+      .gte("created_at", threeSixtyDaysAgoIso);
+
+    if (error) {
+      console.warn("getMyPowerScoreBreakdown: rejected photo count unavailable", error);
+      return undefined;
+    }
+
+    return count ?? 0;
+  })();
+
+  const rawPower = powerRes.data ?? null;
+  const powerScore = toFiniteNumber(rawPower?.p_score);
+  const level = getPowerLevel(powerScore);
+  const referralBonus = toFiniteNumber(rawPower?.b_score);
+  const penaltiesFromRpc = toFiniteNumber(rawPower?.t_score);
+
+  return {
+    powerScore,
+    ...level,
+    parts: {
+      tipping: toFiniteNumber(rawPower?.a_score),
+      accuracy: typeof avgAcc90d === "number" ? avgAcc90d : null,
+      activeDays: toFiniteNumber(rawPower?.c_score),
+      uploads: toFiniteNumber(rawPower?.r_score),
+      streak: countCurrentTipStreak(guessRows as Array<{ created_at?: string | null }>),
+      referrals: referralBonus && referralBonus > 0 ? referralBonus : null,
+      penalties: penaltiesFromRpc ?? (typeof rejectedPhotos360d === "number" ? rejectedPhotos360d * -100 : null),
+    },
+    raw: {
+      guessesPublic90d,
+      guessesAnonymous90d,
+      avgAcc90d,
+      activeDays90d,
+      uploads90d: uploadRowsRes.count ?? 0,
+      uploads30d: uploadRows30dRes.count ?? 0,
+      rejectedPhotos360d,
+      currentStreakDays: countCurrentTipStreak(guessRows as Array<{ created_at?: string | null }>),
+      tipsToday,
+      streakDoneToday: tipsToday > 0,
+      referralBonus: referralBonus ?? undefined,
+    },
+  };
+}
+
+export async function getMyPowerScoreBreakdownSafe(): Promise<SafeResult<PowerScoreBreakdown>> {
+  try {
+    const data = await getMyPowerScoreBreakdown();
+    return { data, errorMessage: null };
+  } catch (e: unknown) {
+    return { data: null, errorMessage: e instanceof Error ? e.message : "RPC error" };
+  }
 }
 
 export type RealVsGuessedPoint = {
@@ -391,6 +651,14 @@ export type StatsHistoryRow = {
   aw_score_norm_pct: number | null;
   avg_accuracy_pct: number | null;
   power_score: number | null;
+};
+
+export type MyStatsProgress30d = {
+  awAgeDelta30d: number | null;
+  powerDelta30d: number | null;
+  accuracyDelta30d: number | null;
+  receivedVotes30d: number | null;
+  hasHistoryComparison: boolean;
 };
 
 export type TipCountHistoryPoint = {
@@ -643,6 +911,97 @@ export async function getMyStatsHistory(view: StatsHistoryView): Promise<StatsHi
     power_score:
       typeof row.power_score === "number" ? row.power_score : row.power_score == null ? null : Number(row.power_score),
   }));
+}
+
+function finiteOrNull(value: unknown): number | null {
+  const numeric = typeof value === "number" ? value : value == null ? Number.NaN : Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function diffOrNull(latest: number | null, previous: number | null): number | null {
+  if (latest === null || previous === null) return null;
+  return latest - previous;
+}
+
+export async function getMyStatsProgress30d(): Promise<MyStatsProgress30d> {
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError) throw new Error(authError.message);
+  if (!user?.id) throw new Error("Uživatel není přihlášen.");
+
+  const now = new Date();
+  const rangeStart = new Date(now);
+  rangeStart.setDate(rangeStart.getDate() - 60);
+
+  const targetDate = new Date(now);
+  targetDate.setDate(targetDate.getDate() - 30);
+  const targetDateKey = formatSnapshotDateLocal(targetDate);
+
+  const [historyRes, imageRowsRes] = await Promise.all([
+    supabase
+      .from("aw_user_stats_history")
+      .select("snapshot_date, aw_age, avg_accuracy_pct, power_score")
+      .eq("user_id", user.id)
+      .gte("snapshot_date", formatSnapshotDateLocal(rangeStart))
+      .order("snapshot_date", { ascending: true }),
+    supabase.from("images").select("id").eq("uploader_user_id", user.id).limit(10000),
+  ]);
+
+  if (historyRes.error) throw new Error(historyRes.error.message);
+  if (imageRowsRes.error) throw new Error(imageRowsRes.error.message);
+
+  const historyRows = ((historyRes.data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+    snapshot_date: String(row.snapshot_date ?? ""),
+    aw_age: finiteOrNull(row.aw_age),
+    avg_accuracy_pct: finiteOrNull(row.avg_accuracy_pct),
+    power_score: finiteOrNull(row.power_score),
+  }));
+
+  const latest = historyRows.at(-1) ?? null;
+  const previous = latest
+    ? (historyRows.filter((row) => row.snapshot_date <= targetDateKey).at(-1) ?? historyRows.find((row) => row.snapshot_date < latest.snapshot_date) ?? null)
+    : null;
+
+  const ownImageIds = ((imageRowsRes.data ?? []) as Array<Record<string, unknown>>)
+    .map((row) => Number(row.id ?? 0))
+    .filter((id) => Number.isFinite(id) && id > 0);
+
+  const receivedVotes30d =
+    ownImageIds.length === 0
+      ? 0
+      : await (async () => {
+          const thirtyDaysAgo = new Date(now);
+          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+          const { count, error } = await supabase
+            .from("age_guesses")
+            .select("id", { count: "exact", head: true })
+            .in("image_id", ownImageIds)
+            .gte("created_at", thirtyDaysAgo.toISOString());
+
+          if (error) throw new Error(error.message);
+          return count ?? 0;
+        })();
+
+  return {
+    awAgeDelta30d: diffOrNull(latest?.aw_age ?? null, previous?.aw_age ?? null),
+    powerDelta30d: diffOrNull(latest?.power_score ?? null, previous?.power_score ?? null),
+    accuracyDelta30d: diffOrNull(latest?.avg_accuracy_pct ?? null, previous?.avg_accuracy_pct ?? null),
+    receivedVotes30d,
+    hasHistoryComparison: Boolean(latest && previous),
+  };
+}
+
+export async function getMyStatsProgress30dSafe(): Promise<SafeResult<MyStatsProgress30d>> {
+  try {
+    const data = await getMyStatsProgress30d();
+    return { data, errorMessage: null };
+  } catch (e: unknown) {
+    return { data: null, errorMessage: e instanceof Error ? e.message : "RPC error" };
+  }
 }
 
 export async function getMyTipCountHistory(view: TipCountHistoryView): Promise<TipCountHistoryPoint[]> {

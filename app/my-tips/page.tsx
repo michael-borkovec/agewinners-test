@@ -1,4 +1,4 @@
-/**
+﻿/**
  * File: app/my-tips/page.tsx
  *
  * Purpose:
@@ -28,6 +28,7 @@ import { useAuth } from "@/components/auth/AuthContext";
 import { supabase } from "@/lib/supabaseClient";
 import { hideFeedImage, PHOTO_CATEGORY_LABELS, type PhotoCategory, unhideFeedImage } from "@/lib/api/posts";
 import { SectionHeaderFilter } from "@/components/SectionHeaderFilter";
+import SoftEmptyState from "@/components/SoftEmptyState";
 import AwButton from "@/components/AwButton";
 import CloseButton from "@/components/CloseButton";
 import { awAlert } from "@/components/AwDialog";
@@ -187,9 +188,9 @@ type ReactionOption = {
 };
 
 const REACTION_OPTIONS: ReactionOption[] = [
-  { key: "like", label: "Like", emoji: "👍", bgClass: "bg-sky-100" },
+  { key: "like", label: "Like", emoji: "ðŸ‘", bgClass: "bg-sky-100" },
   { key: "clap", label: "Tleskám", emoji: "👏", bgClass: "bg-emerald-100" },
-  { key: "care", label: "Podpora", emoji: "🤗", bgClass: "bg-violet-100" },
+  { key: "care", label: "Podpora", emoji: "ðŸ¤—", bgClass: "bg-violet-100" },
   { key: "love", label: "Láska", emoji: "❤️", bgClass: "bg-rose-100" },
   { key: "insight", label: "Zajímavé", emoji: "💡", bgClass: "bg-amber-100" },
   { key: "fun", label: "Úsměv", emoji: "😊", bgClass: "bg-cyan-100" },
@@ -429,7 +430,7 @@ function TipStoryBlock({ story, revealed }: { story: any; revealed: boolean }) {
 
   if (!revealed) {
     return (
-      <section className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+      <section className="mt-3 rounded-xl bg-slate-50 p-3">
         <div className="text-sm font-semibold text-slate-800">Příběh autora</div>
         <p className="mt-1 text-sm text-slate-500">Příběh bude dostupný po odhalení postu.</p>
       </section>
@@ -486,7 +487,7 @@ function TipStoryBlock({ story, revealed }: { story: any; revealed: boolean }) {
   }
 
   return (
-    <section className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50/60 p-3">
+    <section className="mt-3 rounded-xl bg-emerald-50/60 p-3">
       <div className="text-sm font-semibold text-slate-900">Příběh autora</div>
       {body ? <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{body}</p> : null}
       {images.length > 0 ? (
@@ -522,7 +523,7 @@ function TipStoryBlock({ story, revealed }: { story: any; revealed: boolean }) {
       </div>
 
       {commentsOpen ? (
-        <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
+        <div className="mt-3 rounded-xl bg-white p-3">
           <EmojiTextarea
             value={commentDraft}
             onChange={(next) => setCommentDraft(next.slice(0, 1000))}
@@ -538,7 +539,7 @@ function TipStoryBlock({ story, revealed }: { story: any; revealed: boolean }) {
               type="button"
               onClick={() => void submitComment()}
               disabled={commentSubmitting || !commentDraft.trim()}
-              className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+              className="rounded-xl bg-[#32CD32] px-4 py-2 text-sm font-semibold text-white hover:bg-[#28b828] disabled:opacity-60"
             >
               {commentSubmitting ? "Ukládám..." : "Přidat komentář"}
             </button>
@@ -596,7 +597,7 @@ function TipPhotoMenuButton(props: { onClick: () => void; label: string }) {
 
 function TipPhotoMenuPanel(props: { children: ReactNode }) {
   return (
-    <div className="absolute right-0 top-11 z-20 min-w-[180px] rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
+    <div className="absolute right-0 top-11 z-20 min-w-[180px] rounded-xl bg-white p-1 shadow-lg">
       {props.children}
     </div>
   );
@@ -711,7 +712,7 @@ function TipPhotoCard({
   const renderCommentNode = (comment: CommentNode, depth = 0): ReactNode => (
     <div
       key={comment.id}
-      className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2"
+      className="rounded-xl bg-slate-50 px-3 py-2"
       style={{ marginLeft: depth ? Math.min(depth * 12, 36) : 0 }}
     >
       <div className="flex items-center gap-2 text-[11px] text-slate-500">
@@ -729,7 +730,7 @@ function TipPhotoCard({
       </button>
 
       {replyOpenByCommentId[comment.id] ? (
-        <div className="mt-2 rounded-xl border border-slate-200 bg-white p-2">
+        <div className="mt-2 rounded-xl bg-white p-2">
           <EmojiTextarea
             value={replyDraftByCommentId[comment.id] ?? ""}
             onChange={(next) => onReplyDraftChange(comment.id, next.slice(0, 1000))}
@@ -751,7 +752,7 @@ function TipPhotoCard({
                 })
               }
               disabled={replySubmittingByCommentId[comment.id] || !(replyDraftByCommentId[comment.id] ?? "").trim()}
-              className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+              className="inline-flex items-center justify-center rounded-xl bg-[#32CD32] px-4 py-2 text-sm font-semibold text-white hover:bg-[#28b828] disabled:opacity-60"
             >
               {replySubmittingByCommentId[comment.id] ? "Ukládám…" : "Odeslat odpověď"}
             </button>
@@ -866,7 +867,7 @@ function TipPhotoCard({
               >
                 {reactionPickerOpen ? (
                   <div className="absolute bottom-full right-0 z-20 pb-2">
-                    <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-1 shadow-lg">
+                    <div className="flex items-center gap-1 rounded-full bg-white px-2 py-1 shadow-lg">
                       {REACTION_OPTIONS.map((reaction) => (
                         <button
                           key={`${imageId}-${reaction.key}-picker`}
@@ -915,7 +916,7 @@ function TipPhotoCard({
           </div>
 
           {commentsOpen ? (
-            <div className="mt-3 space-y-2 rounded-xl border border-slate-200 bg-white p-3">
+            <div className="mt-3 space-y-2 rounded-xl bg-white p-3">
               <label htmlFor={`comment-${imageId}`} className="block text-xs font-semibold text-slate-700">
                 Přidat komentář k této fotce
               </label>
@@ -943,7 +944,7 @@ function TipPhotoCard({
                     })
                   }
                   disabled={commentSubmitting || !commentDraft.trim()}
-                  className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                  className="inline-flex items-center justify-center rounded-xl bg-[#32CD32] px-4 py-2 text-sm font-semibold text-white hover:bg-[#28b828] disabled:opacity-60"
                 >
                   {commentSubmitting ? "Ukládám…" : "Přidat komentář"}
                 </button>
@@ -1017,7 +1018,6 @@ export default function MyTipsPage() {
     []
   );
 
-  const [helpOpen, setHelpOpen] = useState(false);
   const [zoom, setZoom] = useState<ZoomState>({ open: false, photo: null, revealed: false, remainingMs: 0 });
   const [reactionModal, setReactionModal] = useState<ReactionModalState>({ open: false, imageId: null });
   const [reactionModalFilter, setReactionModalFilter] = useState<"all" | ImageReactionKey>("all");
@@ -1047,7 +1047,7 @@ export default function MyTipsPage() {
   const focusedImageRef = useRef<number | null>(null);
   const focusImageId = Number(searchParams.get("focusImage") ?? 0) || null;
   const focusComments = searchParams.get("comments") === "1";
-  const myTipsHelpPlainText = `Odhalení obsahu po ${formatCzAfterDays(revealDelayDays)} od času posledního tipu v postu.\nJméno a fotka autora se odhalí po 24 hodinách od tipu poslední fotky v postu.\nSpolu s odhalením jména autora ti budou zpřístupněny i komentáře.`;
+  const myTipsHelpPlainText = `Moje tipy ukazují posty a alba, u kterých jsi už tipoval všechny fotky.\n\nFiltr pracuje s kategoriemi, stavem tipu, viditelností a typem obsahu. Refresh načte aktuální stav odhalení.\n\nObsah se odhalí po ${formatCzAfterDays(revealDelayDays)} od času posledního tipu v postu. Jméno a fotka autora se odhalí po 24 hodinách od tipu poslední fotky v postu; spolu s tím se zpřístupní i komentáře.`;
 
   async function loadPrivilegedFlag() {
     if (!userId) return;
@@ -1521,16 +1521,13 @@ export default function MyTipsPage() {
       <SectionHeaderFilter
         title="Moje tipy"
         iconPath="/ui/Menu-Moje-tipy.ico"
-        refreshIconPath="/refresh.ico"
+        refreshIconPath="/icons/action/refresh.png"
         refreshActiveIconPath="/ui/refresh-rot.gif"
         refreshActiveDurationMs={5000}
         refreshAnimationStorageKey="aw:refresh-animation:my-tips"
-        beforeFilterAction={{
-          iconPath: "/ui/otaznik.ico",
-          label: "Nápověda k odhalování",
-          title: myTipsHelpPlainText,
-          onClick: () => setHelpOpen(true),
-        }}
+        helpText={myTipsHelpPlainText}
+        helpKey="my-tips"
+        helpModalTitle="Nápověda - Moje tipy"
         storageKey="aw:filter:my-tips"
         options={filterOptions}
         value={filterCats as string[]}
@@ -1548,7 +1545,7 @@ export default function MyTipsPage() {
         selectValue={onlyAlbums ? "jen_alba" : "vse"}
         onSelectChange={(next) => setOnlyAlbums(next === "jen_alba")}
         showClearAll
-        doneButtonClassName="bg-emerald-600 text-white hover:bg-emerald-700"
+        doneButtonClassName="bg-[#32CD32] text-white hover:bg-[#28b828]"
       />
 
       <div className="p-4">
@@ -1562,9 +1559,14 @@ export default function MyTipsPage() {
         {err ? <p className="text-rose-700">{err}</p> : null}
 
         {!loading && !err && visibleGroups.length === 0 ? (
-          <div className="rounded-xl border bg-white p-4 text-slate-700">
-            {onlyAlbums ? "Zatím tu nemáš tipy u alb (v této filtraci)." : "Zatím tu nemáš žádné tipy u postu/alb (v této filtraci)."}
-          </div>
+          <SoftEmptyState
+            title={onlyAlbums ? "Zatím tu nemáš tipy u alb" : "Zatím tu nemáš žádné tipy"}
+            text={
+              onlyAlbums
+                ? "Jakmile otipuješ všechny fotky v některém albu, po odhalení se ti jeho výsledek objeví právě tady."
+                : "Tady se později objeví posty a alba, u kterých už máš tipování dokončené a můžeš se vrátit k výsledkům."
+            }
+          />
         ) : null}
 
         <div className="space-y-4">
@@ -1609,7 +1611,7 @@ export default function MyTipsPage() {
             const postRevealRemainingMs = revealMeta.remainingMs;
 
             return (
-              <div key={String(g.postId)} className="rounded-2xl border bg-white p-4 shadow-sm">
+              <div key={String(g.postId)} className="rounded-2xl bg-white p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex min-w-0 items-start gap-3">
                                         {authorProfileHref ? (
@@ -1644,16 +1646,6 @@ export default function MyTipsPage() {
                   </div>
 
                   <div className="flex shrink-0 items-center gap-2 text-xs text-slate-500">
-                    <button
-                      type="button"
-                      onClick={() => setHelpOpen(true)}
-                      className="rounded-md p-1 hover:bg-slate-100"
-                      aria-label="Nápověda k odhalování"
-                      title={myTipsHelpPlainText}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src="/ui/otaznik.ico" alt="Nápověda k odhalování" className="h-3.5 w-3.5" />
-                    </button>
                     <span>Post #{g.postId}</span>
                   </div>
                 </div>
@@ -1908,34 +1900,11 @@ export default function MyTipsPage() {
           </div>
         ) : null}
 
-        {helpOpen ? (
-          <div
-            className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
-            onClick={() => setHelpOpen(false)}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="my-tips-help-title"
-          >
-            <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between gap-3">
-                <h2 id="my-tips-help-title" className="text-base font-semibold text-slate-900">
-                  Odhalování v Moje tipy
-                </h2>
-
-                <CloseButton onClick={() => setHelpOpen(false)} label="Zavřít nápovědu" />
-              </div>
-
-              <div className="mt-4 space-y-3 text-sm leading-6 text-slate-700">
-                <p>Odhalení obsahu po {formatCzAfterDays(revealDelayDays)} od času posledního tipu v postu.</p>
-                <p>Jméno a fotka autora se odhalí po 24 hodinách od tipu poslední fotky v postu.</p>
-                <p>Spolu s odhalením jména autora ti budou zpřístupněny i komentáře.</p>
-              </div>
-            </div>
-          </div>
-        ) : null}
       </div>
     </div>
   );
 }
+
+
 
 

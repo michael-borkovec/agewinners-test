@@ -1,4 +1,4 @@
-﻿/**
+/**
  * app/users/[userId]/page.tsx
  *
  * Purpose:
@@ -41,6 +41,14 @@ type PublicProfile = {
   allow_age_visible: boolean | null;
   allow_connections: boolean | null;
   allow_following: boolean | null;
+  social_links_visibility: "everyone" | "contacts" | "private" | null;
+  profile_age_visibility: "everyone" | "contacts" | "private" | null;
+  profile_occupation_visibility: "everyone" | "contacts" | "private" | null;
+  profile_education_visibility: "everyone" | "contacts" | "private" | null;
+  profile_languages_visibility: "everyone" | "contacts" | "private" | null;
+  profile_relationship_visibility: "everyone" | "contacts" | "private" | null;
+  profile_motivation_visibility: "everyone" | "contacts" | "private" | null;
+  profile_body_visibility: "everyone" | "contacts" | "private" | null;
 
   bio_contacts: string | null;
   bio_contacts_hidden: boolean | null;
@@ -99,6 +107,25 @@ type PublicProfile = {
   mindset_hidden: boolean | null;
   life_pace: string | null;
   life_pace_hidden: boolean | null;
+
+  website_url: string | null;
+  website_url_hidden: boolean | null;
+  public_email: string | null;
+  public_email_hidden: boolean | null;
+  instagram_url: string | null;
+  instagram_url_hidden: boolean | null;
+  facebook_url: string | null;
+  facebook_url_hidden: boolean | null;
+  tiktok_url: string | null;
+  tiktok_url_hidden: boolean | null;
+  youtube_url: string | null;
+  youtube_url_hidden: boolean | null;
+  linkedin_url: string | null;
+  linkedin_url_hidden: boolean | null;
+  x_url: string | null;
+  x_url_hidden: boolean | null;
+  contact_note: string | null;
+  contact_note_hidden: boolean | null;
 };
 
 type RelationshipState =
@@ -125,6 +152,79 @@ type SharedNetworkSummary = {
 
 const CURRENT_AW_WINDOW_YEARS = 5;
 const PROFILE_VISIT_THROTTLE_MS = 30 * 60 * 1000;
+const BASE_PUBLIC_PROFILE_COLUMNS = `
+  user_id, display_name, avatar_url, date_of_birth, bio, created_at, account_status,
+  allow_age_visible, allow_connections, allow_following,
+  social_links_visibility,
+  profile_age_visibility,
+  profile_occupation_visibility, profile_education_visibility, profile_languages_visibility,
+  profile_relationship_visibility, profile_motivation_visibility, profile_body_visibility,
+  bio_contacts, bio_contacts_hidden,
+  occupation, occupation_hidden,
+  is_student, is_student_hidden,
+  education_level, education_level_hidden,
+  native_languages, native_languages_hidden,
+  other_languages, other_languages_hidden,
+  relationship_status, relationship_status_hidden,
+  motivation_text, motivation_text_hidden,
+  height_cm, height_cm_hidden,
+  weight_kg, weight_kg_hidden,
+  about_me, about_me_hidden,
+  primary_interests, primary_interests_hidden,
+  interests, interests_custom, interests_hidden,
+  life_goals, life_goals_custom, life_goals_hidden,
+  self_view, self_view_hidden,
+  improvement_areas, improvement_areas_custom, improvement_areas_hidden,
+  activities, activities_custom, activities_hidden,
+  diet_preference, diet_preference_hidden,
+  alcohol_use, alcohol_use_hidden,
+  smoking, smoking_hidden,
+  drug_light, drug_hard, drugs_hidden,
+  mindset, mindset_hidden,
+  life_pace, life_pace_hidden
+`;
+const CONTACT_PUBLIC_PROFILE_COLUMNS = `
+  website_url, website_url_hidden,
+  public_email, public_email_hidden,
+  instagram_url, instagram_url_hidden,
+  facebook_url, facebook_url_hidden,
+  tiktok_url, tiktok_url_hidden,
+  youtube_url, youtube_url_hidden,
+  linkedin_url, linkedin_url_hidden,
+  x_url, x_url_hidden,
+  contact_note, contact_note_hidden
+`;
+const CONTACT_PUBLIC_PROFILE_KEYS = [
+  "website_url",
+  "public_email",
+  "instagram_url",
+  "facebook_url",
+  "tiktok_url",
+  "youtube_url",
+  "linkedin_url",
+  "x_url",
+  "contact_note",
+];
+const EMPTY_CONTACT_PUBLIC_PROFILE_FIELDS = {
+  website_url: null,
+  website_url_hidden: null,
+  public_email: null,
+  public_email_hidden: null,
+  instagram_url: null,
+  instagram_url_hidden: null,
+  facebook_url: null,
+  facebook_url_hidden: null,
+  tiktok_url: null,
+  tiktok_url_hidden: null,
+  youtube_url: null,
+  youtube_url_hidden: null,
+  linkedin_url: null,
+  linkedin_url_hidden: null,
+  x_url: null,
+  x_url_hidden: null,
+  contact_note: null,
+  contact_note_hidden: null,
+};
 
 function safeText(value: unknown): string | null {
   const text = String(value ?? "").trim();
@@ -169,6 +269,16 @@ function average(values: number[]) {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+function formatCount(value: number) {
+  return new Intl.NumberFormat("cs-CZ").format(value);
+}
+
+function isMissingOptionalContactColumn(error: unknown) {
+  const err = error as { code?: string; message?: string; details?: string; hint?: string } | null;
+  const text = `${err?.code ?? ""} ${err?.message ?? ""} ${err?.details ?? ""} ${err?.hint ?? ""}`.toLowerCase();
+  return err?.code === "PGRST204" || err?.code === "42703" || CONTACT_PUBLIC_PROFILE_KEYS.some((key) => text.includes(key));
+}
+
 async function promptOptionalMessage(title: string) {
   return awPrompt({
     title: "Volitelná zpráva",
@@ -197,31 +307,91 @@ function shouldRecordProfileVisit(viewedUserId: string) {
 function BadgeList({ items }: { items: string[] }) {
   if (!items.length) return <div className="text-sm text-slate-500">—</div>;
   return (
-    <div className="flex flex-wrap gap-2">
+    <span className="inline-flex flex-wrap gap-1.5 align-middle">
       {items.map((item) => (
-        <span key={item} className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-800">
+        <span key={item} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-800">
           {item}
         </span>
+      ))}
+    </span>
+  );
+}
+
+type IntroIconName = "activity" | "briefcase" | "cake" | "calendar" | "chart" | "globe" | "heart" | "link" | "mail" | "ruler" | "school" | "spark" | "star" | "target" | "text";
+
+type IntroItemData = {
+  icon: IntroIconName;
+  text: React.ReactNode;
+};
+
+function compactIntroItems(items: Array<IntroItemData | null>) {
+  return items.filter((item): item is IntroItemData => Boolean(item));
+}
+
+function IntroPanel({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-2xl bg-white p-5">
+      <h2 className="text-xl font-black text-slate-950">{title}</h2>
+      <div className="mt-4">{children}</div>
+    </section>
+  );
+}
+
+function IntroList({ items, emptyText }: { items: IntroItemData[]; emptyText?: string }) {
+  if (!items.length) return <div className="text-sm leading-6 text-slate-500">{emptyText ?? "Zatím bez dalších informací."}</div>;
+  return (
+    <div className="space-y-3">
+      {items.map((item, index) => (
+        <div key={index} className="flex items-start gap-3 text-sm leading-6 text-slate-700">
+          <ProfileMiniIcon name={item.icon} />
+          <div className="min-w-0 flex-1">{item.text}</div>
+        </div>
       ))}
     </div>
   );
 }
 
-function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
+function NetworkMiniStat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="grid gap-1 rounded-xl border border-slate-200 bg-slate-50 p-3">
-      <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</div>
-      <div className="text-sm text-slate-900">{value}</div>
+    <div>
+      <div className="text-xl font-black text-slate-950">{formatCount(value)}</div>
+      <div className="text-sm text-slate-500">{label}</div>
     </div>
   );
 }
 
-function SectionCard(props: { title: string; children: React.ReactNode }) {
+function ProfileMiniIcon({ name }: { name: IntroIconName }) {
+  const common = "stroke-current";
   return (
-    <div>
-      <div className="text-sm font-bold uppercase tracking-wide text-slate-500">{props.title}</div>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">{props.children}</div>
-    </div>
+    <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        {name === "briefcase" ? <><path className={common} d="M10 6V5a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v1" /><path className={common} d="M4 7h16v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7Z" /><path className={common} d="M4 12h16" /></> : null}
+        {name === "school" ? <><path className={common} d="m3 10 9-5 9 5-9 5-9-5Z" /><path className={common} d="M7 12v4c3 2 7 2 10 0v-4" /></> : null}
+        {name === "globe" ? <><circle className={common} cx="12" cy="12" r="9" /><path className={common} d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18" /></> : null}
+        {name === "cake" ? <><path className={common} d="M4 21h16v-8H4v8Z" /><path className={common} d="M4 16h16M8 13V9M12 13V9M16 13V9" /><path className={common} d="M8 7h.01M12 7h.01M16 7h.01" /></> : null}
+        {name === "heart" ? <path className={common} d="M20 8.5c0 5-8 10.5-8 10.5S4 13.5 4 8.5A4.5 4.5 0 0 1 12 6a4.5 4.5 0 0 1 8 2.5Z" /> : null}
+        {name === "spark" ? <><path className={common} d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z" /><path className={common} d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z" /></> : null}
+        {name === "ruler" ? <><path className={common} d="M4 17 17 4l3 3L7 20l-3-3Z" /><path className={common} d="m8 13 2 2M11 10l2 2M14 7l2 2" /></> : null}
+        {name === "chart" ? <><path className={common} d="M4 19V5" /><path className={common} d="M4 19h16" /><path className={common} d="M8 15l3-4 3 2 4-6" /></> : null}
+        {name === "calendar" ? <><path className={common} d="M5 5h14v15H5V5Z" /><path className={common} d="M8 3v4M16 3v4M5 10h14" /></> : null}
+        {name === "text" ? <><path className={common} d="M5 7h14M5 12h14M5 17h9" /></> : null}
+        {name === "star" ? <path className={common} d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.8 1-6.1-4.4-4.3 6.1-.9L12 3Z" /> : null}
+        {name === "target" ? <><circle className={common} cx="12" cy="12" r="8" /><circle className={common} cx="12" cy="12" r="4" /><path className={common} d="M12 12h.01" /></> : null}
+        {name === "activity" ? <path className={common} d="M4 12h4l2-6 4 12 2-6h4" /> : null}
+        {name === "link" ? <><path className={common} d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1" /><path className={common} d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1" /></> : null}
+        {name === "mail" ? <><path className={common} d="M4 6h16v12H4V6Z" /><path className={common} d="m4 7 8 6 8-6" /></> : null}
+      </svg>
+    </span>
+  );
+}
+
+function KebabIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden="true">
+      <circle cx="5" cy="12" r="2" />
+      <circle cx="12" cy="12" r="2" />
+      <circle cx="19" cy="12" r="2" />
+    </svg>
   );
 }
 
@@ -248,6 +418,7 @@ export default function OtherUserProfilePage() {
   const [rel, setRel] = useState<RelationshipState>({ kind: "none" });
   const [isFollowing, setIsFollowing] = useState(false);
   const [statsSummary, setStatsSummary] = useState<ProfileStatsSummary>({ awAge: null, awScoreNormPct: null });
+  const [coverImages, setCoverImages] = useState<string[]>([]);
   const [profileChallenges, setProfileChallenges] = useState<AwChallenge[]>([]);
   const [networkSummary, setNetworkSummary] = useState<SharedNetworkSummary>({
     connections_count: 0,
@@ -275,44 +446,29 @@ export default function OtherUserProfilePage() {
 
       const { data: p, error: profileError } = await supabase
         .from("user_profiles")
-        .select(`
-          user_id, display_name, avatar_url, date_of_birth, bio, created_at, account_status,
-          allow_age_visible, allow_connections, allow_following,
-          bio_contacts, bio_contacts_hidden,
-          occupation, occupation_hidden,
-          is_student, is_student_hidden,
-          education_level, education_level_hidden,
-          native_languages, native_languages_hidden,
-          other_languages, other_languages_hidden,
-          relationship_status, relationship_status_hidden,
-          motivation_text, motivation_text_hidden,
-          height_cm, height_cm_hidden,
-          weight_kg, weight_kg_hidden,
-          about_me, about_me_hidden,
-          primary_interests, primary_interests_hidden,
-          interests, interests_custom, interests_hidden,
-          life_goals, life_goals_custom, life_goals_hidden,
-          self_view, self_view_hidden,
-          improvement_areas, improvement_areas_custom, improvement_areas_hidden,
-          activities, activities_custom, activities_hidden,
-          diet_preference, diet_preference_hidden,
-          alcohol_use, alcohol_use_hidden,
-          smoking, smoking_hidden,
-          drug_light, drug_hard, drugs_hidden,
-          mindset, mindset_hidden,
-          life_pace, life_pace_hidden
-        `)
+        .select(BASE_PUBLIC_PROFILE_COLUMNS)
         .eq("user_id", userId)
         .single();
 
       if (profileError) throw profileError;
-      setProfile(p as PublicProfile);
 
-      if ((p as any)?.account_status === "suspended") {
+      const { data: contactData, error: contactError } = await supabase
+        .from("user_profiles")
+        .select(CONTACT_PUBLIC_PROFILE_COLUMNS)
+        .eq("user_id", userId)
+        .single();
+
+      if (contactError && !isMissingOptionalContactColumn(contactError)) throw contactError;
+
+      const publicProfile = { ...EMPTY_CONTACT_PUBLIC_PROFILE_FIELDS, ...(p as object), ...((contactData ?? {}) as object) } as PublicProfile;
+      setProfile(publicProfile);
+
+      if (publicProfile.account_status === "suspended") {
         setRel({ kind: "none" });
         setIsFollowing(false);
         setProfileChallenges([]);
         setStatsSummary({ awAge: null, awScoreNormPct: null });
+        setCoverImages([]);
         setNetworkSummary({
           connections_count: 0,
           following_count: 0,
@@ -399,6 +555,25 @@ export default function OtherUserProfilePage() {
           .filter((value: number | null): value is number => value != null && Number.isFinite(value));
 
         setStatsSummary({ awAge: average(awAges), awScoreNormPct: average(awScores) });
+      }
+
+      const { data: coverRows, error: coverError } = await supabase
+        .from("images")
+        .select("public_url_thumb, public_url_medium, public_url")
+        .eq("uploader_user_id", userId)
+        .eq("hidden_by_admin", false)
+        .order("created_at", { ascending: false })
+        .limit(4);
+
+      if (coverError) {
+        console.warn("users/[userId]: cover images load failed", coverError);
+        setCoverImages([]);
+      } else {
+        setCoverImages(
+          (coverRows ?? [])
+            .map((row: any) => row.public_url_thumb ?? row.public_url_medium ?? row.public_url)
+            .filter((url: unknown): url is string => typeof url === "string" && url.trim().length > 0)
+        );
       }
 
       const { data: followingRow, error: followingError } = await supabase
@@ -515,21 +690,58 @@ export default function OtherUserProfilePage() {
     await runBusy("toggle-follow", () => (isFollowing ? unfollowUser(userId) : followUser(userId)));
   }
 
-  function detailText(hiddenFlag: boolean | null | undefined, value: unknown) {
-    if (!(isConnected || isSelf)) return "—";
-    if (Boolean(hiddenFlag)) return "Skryto";
-    if (value === null || value === undefined) return "—";
-    if (typeof value === "string") return value.trim() ? value : "—";
-    if (typeof value === "number") return Number.isFinite(value) ? String(value) : "—";
+  function visibleValue(hiddenFlag: boolean | null | undefined, value: unknown): React.ReactNode | null {
+    if (!(isConnected || isSelf)) return null;
+    if (Boolean(hiddenFlag)) return null;
+    if (value === null || value === undefined) return null;
+    if (typeof value === "string") return value.trim() ? value : null;
+    if (typeof value === "number") return Number.isFinite(value) ? String(value) : null;
     if (typeof value === "boolean") return value ? "Ano" : "Ne";
     return String(value);
   }
 
-  function detailList(hiddenFlag: boolean | null | undefined, values: string[] | null | undefined) {
-    if (!(isConnected || isSelf)) return <div className="text-sm text-slate-500">—</div>;
-    if (Boolean(hiddenFlag)) return <div className="text-sm text-slate-500">Skryto</div>;
-    const items = Array.isArray(values) ? values : [];
-    return <BadgeList items={items} />;
+  function visibleList(hiddenFlag: boolean | null | undefined, values: string[] | null | undefined): React.ReactNode | null {
+    if (!(isConnected || isSelf)) return null;
+    if (Boolean(hiddenFlag)) return null;
+    const items = Array.isArray(values) ? values.filter((value) => safeText(value)) : [];
+    return items.length ? <BadgeList items={items} /> : null;
+  }
+
+  function visibleContact(hiddenFlag: boolean | null | undefined, value: string | null | undefined, isEmail = false): React.ReactNode | null {
+    if (!canSeeGroup(profile?.social_links_visibility ?? (hiddenFlag ? "private" : "contacts"))) return null;
+    if (Boolean(hiddenFlag)) return null;
+    const clean = safeText(value);
+    if (!clean) return null;
+    const href = isEmail ? `mailto:${clean}` : clean;
+    return (
+      <a href={href} target={isEmail ? undefined : "_blank"} rel={isEmail ? undefined : "noreferrer"} className="break-all text-emerald-700 hover:underline">
+        {clean}
+      </a>
+    );
+  }
+
+  function canSeeGroup(visibility: "everyone" | "contacts" | "private" | null | undefined) {
+    if (isSelf) return true;
+    if (visibility === "everyone") return true;
+    if (visibility === "private") return false;
+    return isConnected;
+  }
+
+  function groupedValue(visibility: "everyone" | "contacts" | "private" | null | undefined, hiddenFlag: boolean | null | undefined, value: unknown) {
+    if (!canSeeGroup(visibility ?? (hiddenFlag ? "private" : "contacts"))) return null;
+    if (Boolean(hiddenFlag)) return null;
+    if (value === null || value === undefined) return null;
+    if (typeof value === "string") return value.trim() ? value : null;
+    if (typeof value === "number") return Number.isFinite(value) ? String(value) : null;
+    if (typeof value === "boolean") return value ? "Ano" : "Ne";
+    return String(value);
+  }
+
+  function groupedList(visibility: "everyone" | "contacts" | "private" | null | undefined, hiddenFlag: boolean | null | undefined, values: string[] | null | undefined) {
+    if (!canSeeGroup(visibility ?? (hiddenFlag ? "private" : "contacts"))) return null;
+    if (Boolean(hiddenFlag)) return null;
+    const items = Array.isArray(values) ? values.filter((value) => safeText(value)) : [];
+    return items.length ? <BadgeList items={items} /> : null;
   }
 
   if (loading) {
@@ -578,32 +790,28 @@ export default function OtherUserProfilePage() {
 
   const canRequest = Boolean(profile.allow_connections ?? true);
   const canFollow = Boolean(profile.allow_following ?? true);
-  const canShowAgeInfo = (isConnected || isSelf) && Boolean(profile.allow_age_visible ?? true);
+  const canShowAgeInfo =
+    canSeeGroup(profile.profile_age_visibility ?? (profile.allow_age_visible === false ? "private" : "contacts")) &&
+    Boolean(profile.allow_age_visible ?? true);
 
   const combinedInterests = joinList(profile.interests, profile.interests_custom);
   const combinedGoals = joinList(profile.life_goals, profile.life_goals_custom);
   const combinedAreas = joinList(profile.improvement_areas, profile.improvement_areas_custom);
   const combinedActivities = joinList(profile.activities, profile.activities_custom);
-
   const connectionArea = (() => {
-    if (isSelf) return <div className="text-xs text-slate-600">Tohle je tvůj profil.</div>;
+    if (isSelf) return null;
 
     if (rel.kind === "connected") {
       return (
         <div className="flex flex-wrap items-center gap-2">
-          <div className="text-xs font-semibold text-emerald-700">Jste ve spojení</div>
           <Link
             href={`/messages?user=${userId}`}
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+            className="rounded-xl bg-[#32CD32] px-4 py-2 text-sm font-bold text-white hover:bg-[#28b828]"
           >
-            Zprávy
+            Zpráva
           </Link>
-          <button
-            onClick={() => onRemoveConnection().catch((e: any) => void awAlert(e?.message ?? "Chyba"))}
-            disabled={busy === "remove-connection"}
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-          >
-            Zrušit spojení
+          <button type="button" className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-800">
+            Ve spojení
           </button>
         </div>
       );
@@ -614,9 +822,9 @@ export default function OtherUserProfilePage() {
         <button
           onClick={() => onCancelRequest().catch((e: any) => void awAlert(e?.message ?? "Chyba"))}
           disabled={busy === "cancel-request"}
-          className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+          className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-60"
         >
-          Zrušit žádost
+          Žádost odeslána
         </button>
       );
     }
@@ -627,14 +835,14 @@ export default function OtherUserProfilePage() {
           <button
             onClick={() => onDecline().catch((e: any) => void awAlert(e?.message ?? "Chyba"))}
             disabled={busy === "decline-request"}
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+            className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200 disabled:opacity-60"
           >
             Zamítnout
           </button>
           <button
             onClick={() => onAccept().catch((e: any) => void awAlert(e?.message ?? "Chyba"))}
             disabled={busy === "accept-request"}
-            className="rounded-xl bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
+            className="rounded-xl bg-[#32CD32] px-4 py-2 text-sm font-bold text-white hover:bg-[#28b828] disabled:opacity-60"
           >
             Přijmout
           </button>
@@ -646,8 +854,8 @@ export default function OtherUserProfilePage() {
       <button
         onClick={() => onRequestConnection().catch((e: any) => void awAlert(e?.message ?? "Chyba"))}
         disabled={!canRequest || busy === "request"}
-        className={`rounded-xl px-3 py-2 text-sm font-medium disabled:opacity-60 ${
-          canRequest ? "bg-emerald-600 text-white hover:bg-emerald-700" : "bg-slate-200 text-slate-500"
+        className={`rounded-xl px-4 py-2 text-sm font-bold disabled:opacity-60 ${
+          canRequest ? "bg-[#32CD32] text-white hover:bg-[#28b828]" : "bg-slate-200 text-slate-500"
         }`}
       >
         {canRequest ? "Požádat o spojení" : "Spojení zakázáno"}
@@ -655,179 +863,303 @@ export default function OtherUserProfilePage() {
     );
   })();
 
+  const networkLine = [
+    `${formatCount(networkSummary.connections_count)} spojení`,
+    `${formatCount(networkSummary.followers_count)} sledujících`,
+    networkSummary.mutual_connections_count > 0 ? `${formatCount(networkSummary.mutual_connections_count)} společných` : null,
+  ].filter(Boolean);
+
+  const introItems = compactIntroItems([
+    groupedValue(profile.profile_occupation_visibility, profile.occupation_hidden, profile.occupation)
+      ? { icon: "briefcase", text: groupedValue(profile.profile_occupation_visibility, profile.occupation_hidden, profile.occupation) }
+      : null,
+    groupedValue(profile.profile_education_visibility, profile.is_student_hidden, profile.is_student)
+      ? { icon: "school", text: profile.is_student ? "Studuje" : "Nestuduje" }
+      : null,
+    groupedValue(profile.profile_education_visibility, profile.education_level_hidden, profile.education_level)
+      ? { icon: "school", text: groupedValue(profile.profile_education_visibility, profile.education_level_hidden, profile.education_level) }
+      : null,
+    groupedList(profile.profile_languages_visibility, profile.native_languages_hidden, profile.native_languages)
+      ? { icon: "globe", text: <>Rodný jazyk: {groupedList(profile.profile_languages_visibility, profile.native_languages_hidden, profile.native_languages)}</> }
+      : null,
+    groupedList(profile.profile_languages_visibility, profile.other_languages_hidden, profile.other_languages)
+      ? { icon: "globe", text: <>Další jazyky: {groupedList(profile.profile_languages_visibility, profile.other_languages_hidden, profile.other_languages)}</> }
+      : null,
+    canShowAgeInfo && profile.date_of_birth
+      ? { icon: "cake", text: <>Narozen/a {formatDateCZ(profile.date_of_birth)}</> }
+      : null,
+    groupedValue(profile.profile_relationship_visibility, profile.relationship_status_hidden, profile.relationship_status)
+      ? { icon: "heart", text: groupedValue(profile.profile_relationship_visibility, profile.relationship_status_hidden, profile.relationship_status) }
+      : null,
+    groupedValue(profile.profile_motivation_visibility, profile.motivation_text_hidden, profile.motivation_text)
+      ? { icon: "spark", text: groupedValue(profile.profile_motivation_visibility, profile.motivation_text_hidden, profile.motivation_text) }
+      : null,
+    groupedValue(profile.profile_body_visibility, profile.height_cm_hidden, profile.height_cm)
+      ? { icon: "ruler", text: `${profile.height_cm} cm` }
+      : null,
+    groupedValue(profile.profile_body_visibility, profile.weight_kg_hidden, profile.weight_kg)
+      ? { icon: "ruler", text: `${profile.weight_kg} kg` }
+      : null,
+  ]);
+
+  const awItems: IntroItemData[] = canShowAgeInfo
+    ? [
+        { icon: "chart", text: <>AW věk {statsSummary.awAge !== null ? `${statsSummary.awAge.toFixed(1)} let` : "zatím není dostupný"}</> },
+        { icon: "chart", text: <>AW skóre {formatAwScoreForUi(statsSummary.awScoreNormPct)}</> },
+      ]
+    : [];
+
+  const aboutItems = compactIntroItems([
+    visibleValue(profile.bio_contacts_hidden, profile.bio_contacts)
+      ? { icon: "text", text: visibleValue(profile.bio_contacts_hidden, profile.bio_contacts) }
+      : null,
+    visibleValue(profile.about_me_hidden, profile.about_me) ? { icon: "text", text: visibleValue(profile.about_me_hidden, profile.about_me) } : null,
+    visibleList(profile.primary_interests_hidden, profile.primary_interests)
+      ? { icon: "star", text: <>Primární zájem: {visibleList(profile.primary_interests_hidden, profile.primary_interests)}</> }
+      : null,
+    visibleList(profile.interests_hidden, combinedInterests) ? { icon: "star", text: <>Zájmy: {visibleList(profile.interests_hidden, combinedInterests)}</> } : null,
+    visibleList(profile.life_goals_hidden, combinedGoals) ? { icon: "target", text: <>Cíle: {visibleList(profile.life_goals_hidden, combinedGoals)}</> } : null,
+    visibleValue(profile.self_view_hidden, profile.self_view) ? { icon: "spark", text: <>Považuje se za {visibleValue(profile.self_view_hidden, profile.self_view)}</> } : null,
+    visibleList(profile.improvement_areas_hidden, combinedAreas)
+      ? { icon: "target", text: <>Chce se zlepšit v: {visibleList(profile.improvement_areas_hidden, combinedAreas)}</> }
+      : null,
+  ]);
+
+  const lifestyleItems = compactIntroItems([
+    visibleList(profile.activities_hidden, combinedActivities) ? { icon: "activity", text: <>Pohyb / sport: {visibleList(profile.activities_hidden, combinedActivities)}</> } : null,
+    visibleValue(profile.diet_preference_hidden, profile.diet_preference) ? { icon: "activity", text: <>Strava: {visibleValue(profile.diet_preference_hidden, profile.diet_preference)}</> } : null,
+    visibleValue(profile.alcohol_use_hidden, profile.alcohol_use) ? { icon: "activity", text: <>Alkohol: {visibleValue(profile.alcohol_use_hidden, profile.alcohol_use)}</> } : null,
+    visibleValue(profile.smoking_hidden, profile.smoking) ? { icon: "activity", text: <>Kouření: {visibleValue(profile.smoking_hidden, profile.smoking)}</> } : null,
+    !profile.drugs_hidden && (profile.drug_light !== null || profile.drug_hard !== null)
+      ? {
+          icon: "activity",
+          text: (
+            <>
+              {profile.drug_light !== null ? `Lehké drogy: ${profile.drug_light ? "Ano" : "Ne"}` : null}
+              {profile.drug_light !== null && profile.drug_hard !== null ? " · " : null}
+              {profile.drug_hard !== null ? `Tvrdé drogy: ${profile.drug_hard ? "Ano" : "Ne"}` : null}
+            </>
+          ),
+        }
+      : null,
+    visibleValue(profile.mindset_hidden, profile.mindset) ? { icon: "spark", text: <>Mindset: {visibleValue(profile.mindset_hidden, profile.mindset)}</> } : null,
+    visibleValue(profile.life_pace_hidden, profile.life_pace) ? { icon: "activity", text: <>Tempo života: {visibleValue(profile.life_pace_hidden, profile.life_pace)}</> } : null,
+  ]);
+
+  const contactItems = compactIntroItems([
+    visibleContact(profile.instagram_url_hidden, profile.instagram_url) ? { icon: "link", text: <>Instagram: {visibleContact(profile.instagram_url_hidden, profile.instagram_url)}</> } : null,
+    visibleContact(profile.facebook_url_hidden, profile.facebook_url) ? { icon: "link", text: <>Facebook: {visibleContact(profile.facebook_url_hidden, profile.facebook_url)}</> } : null,
+    visibleContact(profile.tiktok_url_hidden, profile.tiktok_url) ? { icon: "link", text: <>TikTok: {visibleContact(profile.tiktok_url_hidden, profile.tiktok_url)}</> } : null,
+    visibleContact(profile.youtube_url_hidden, profile.youtube_url) ? { icon: "link", text: <>YouTube: {visibleContact(profile.youtube_url_hidden, profile.youtube_url)}</> } : null,
+    visibleContact(profile.linkedin_url_hidden, profile.linkedin_url) ? { icon: "link", text: <>LinkedIn: {visibleContact(profile.linkedin_url_hidden, profile.linkedin_url)}</> } : null,
+    visibleContact(profile.x_url_hidden, profile.x_url) ? { icon: "link", text: <>X: {visibleContact(profile.x_url_hidden, profile.x_url)}</> } : null,
+  ]);
+
   return (
-    <div className="mx-auto max-w-4xl p-6">
-      <div className="rounded-2xl bg-white p-5 shadow">
-        <div className="flex items-start gap-4">
-          <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-slate-100">
-            {profile.avatar_url ? (
-              <img src={profile.avatar_url} alt={displayName} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-            ) : (
-              <span className="text-lg font-semibold text-slate-600">{initial}</span>
-            )}
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <div className="text-xl font-semibold text-slate-900">{displayName}</div>
-            <div className="mt-1 break-all text-xs text-slate-500">{profile.user_id}</div>
-            <div className="mt-2 text-sm text-slate-700">{safeText(profile.bio) || "—"}</div>
-
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              {connectionArea}
-
-              <button
-                onClick={() => onFollowToggle().catch((e: any) => void awAlert(e?.message ?? "Chyba"))}
-                disabled={isSelf || (!canFollow && !isFollowing) || busy === "toggle-follow"}
-                className={`rounded-xl px-3 py-2 text-sm font-medium disabled:opacity-60 ${
-                  isSelf
-                    ? "bg-slate-200 text-slate-500"
-                    : isFollowing
-                    ? "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                    : canFollow
-                    ? "bg-slate-900 text-white hover:bg-slate-800"
-                    : "bg-slate-200 text-slate-500"
-                }`}
-              >
-                {isFollowing ? "Přestat sledovat" : canFollow ? "Sledovat" : "Sledování zakázáno"}
-              </button>
-
-              {!canRequest && rel.kind === "none" ? <div className="text-xs text-slate-500">Uživatel nepřijímá žádosti o spojení.</div> : null}
-              {!canFollow && !isFollowing ? <div className="text-xs text-slate-500">Uživatel nepovoluje sledování.</div> : null}
-            </div>
-
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-              <InfoRow label="Spojení" value={networkSummary.connections_count} />
-              <InfoRow label="Sleduje" value={networkSummary.following_count} />
-              <InfoRow label="Sledující" value={networkSummary.followers_count} />
-              <InfoRow label="Společná spojení" value={networkSummary.mutual_connections_count} />
-              <InfoRow label="Oba sledujete" value={networkSummary.common_following_count} />
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <InfoRow label="Datum narození" value={canShowAgeInfo ? formatDateCZ(profile.date_of_birth) : "Skryto"} />
-          <InfoRow label="AW věk" value={canShowAgeInfo && statsSummary.awAge !== null ? `${statsSummary.awAge.toFixed(1)} let` : canShowAgeInfo ? "—" : "Skryto"} />
-          <InfoRow label="AW skóre" value={canShowAgeInfo ? formatAwScoreForUi(statsSummary.awScoreNormPct) : "Skryto"} />
-          <InfoRow label="Povolání" value={detailText(profile.occupation_hidden, profile.occupation)} />
-          <InfoRow label="Student" value={detailText(profile.is_student_hidden, profile.is_student)} />
-          <InfoRow label="Vzdělání" value={detailText(profile.education_level_hidden, profile.education_level)} />
-          <InfoRow label="Rodný jazyk" value={detailList(profile.native_languages_hidden, profile.native_languages)} />
-          <InfoRow label="Další jazyky" value={detailList(profile.other_languages_hidden, profile.other_languages)} />
-          <InfoRow label="Bio pro kontakty" value={detailText(profile.bio_contacts_hidden, profile.bio_contacts)} />
-        </div>
-
-        {profileChallenges.length > 0 ? (
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <div className="text-sm font-semibold text-slate-900">Výzvy</div>
-            <div className="mt-3 grid gap-2">
-              {profileChallenges.map((challenge) => (
-                <Link
-                  key={challenge.id}
-                  href={`/challenges/${challenge.id}`}
-                  className="rounded-xl bg-white px-3 py-2 text-sm font-semibold text-slate-800 hover:text-emerald-700 hover:underline"
-                >
-                  {challenge.title}
-                  <span className="ml-2 text-xs font-normal text-slate-500">
-                    {formatAwScoreForUi(challenge.baseline_aw_score_norm_pct)} → {formatAwScoreForUi(challenge.target_aw_score_norm_pct)}
-                  </span>
-                </Link>
+    <div className="mx-auto max-w-5xl p-6">
+      <div className="overflow-hidden rounded-2xl bg-white">
+        <div className="relative h-24 bg-[linear-gradient(135deg,#e8fbe8_0%,#ffffff_48%,#f3f6fb_100%)] sm:h-32">
+          {coverImages.length > 0 ? (
+            <div className="grid h-full grid-cols-4 gap-1 opacity-95">
+              {coverImages.slice(0, 4).map((src, index) => (
+                <div key={`${src}-${index}`} className="overflow-hidden bg-slate-100">
+                  <img src={src} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                </div>
               ))}
             </div>
-          </div>
-        ) : null}
+          ) : null}
+          <div className="absolute inset-0 bg-gradient-to-t from-white/80 via-white/10 to-transparent" />
+        </div>
 
-        {!Boolean(profile.primary_interests_hidden) && (profile.primary_interests?.length ?? 0) > 0 ? (
-          <div className="mt-6">
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Primární zájem</div>
-            <div className="mt-2">
-              <BadgeList items={profile.primary_interests ?? []} />
+        <div className="relative px-5 pb-6 sm:px-6">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:gap-5">
+              <div className="-mt-12 flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-slate-100 shadow-sm sm:-mt-16 sm:h-32 sm:w-32">
+                {profile.avatar_url ? (
+                  <img src={profile.avatar_url} alt={displayName} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                ) : (
+                  <span className="text-3xl font-black text-slate-600">{initial}</span>
+                )}
+              </div>
+
+              <div className="min-w-0 pt-0 sm:pt-2">
+                <h1 className="truncate text-3xl font-black leading-tight text-slate-950 sm:text-4xl">{displayName}</h1>
+                <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold text-slate-600">
+                  {networkLine.map((item, index) => (
+                    <span key={item} className="inline-flex items-center gap-2">
+                      {index > 0 ? <span className="h-1 w-1 rounded-full bg-slate-400" /> : null}
+                      {item}
+                    </span>
+                  ))}
+                </div>
+                {safeText(profile.bio) ? <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-700">{safeText(profile.bio)}</p> : null}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+              {connectionArea}
+              {!isSelf && rel.kind !== "connected" ? (
+                <button
+                  onClick={() => onFollowToggle().catch((e: any) => void awAlert(e?.message ?? "Chyba"))}
+                  disabled={(!canFollow && !isFollowing) || busy === "toggle-follow"}
+                  className={`rounded-xl px-4 py-2 text-sm font-bold disabled:opacity-60 ${
+                    isFollowing
+                      ? "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                      : canFollow
+                        ? "bg-slate-900 text-white hover:bg-slate-800"
+                        : "bg-slate-200 text-slate-500"
+                  }`}
+                >
+                  {isFollowing ? "Sleduješ" : canFollow ? "Sledovat" : "Sledování zakázáno"}
+                </button>
+              ) : null}
+              {!isSelf ? (
+                <details className="relative">
+                  <summary
+                    className="inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl bg-white text-slate-700 hover:bg-slate-50"
+                    style={{ listStyle: "none" }}
+                    aria-label="Další akce"
+                    title="Další akce"
+                  >
+                    <span className="sr-only">Další akce</span>
+                    <KebabIcon />
+                  </summary>
+                  <div className="absolute right-0 z-20 mt-2 min-w-[220px] rounded-2xl bg-white p-2 shadow-xl">
+                    {rel.kind === "connected" ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => onFollowToggle().catch((e: any) => void awAlert(e?.message ?? "Chyba"))}
+                          disabled={(!canFollow && !isFollowing) || busy === "toggle-follow"}
+                          className="block w-full rounded-xl px-3 py-2 text-left text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-60"
+                        >
+                          {isFollowing ? "Přestat sledovat" : canFollow ? "Sledovat" : "Sledování zakázáno"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onRemoveConnection().catch((e: any) => void awAlert(e?.message ?? "Chyba"))}
+                          disabled={busy === "remove-connection"}
+                          className="block w-full rounded-xl px-3 py-2 text-left text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60"
+                        >
+                          Zrušit spojení
+                        </button>
+                      </>
+                    ) : null}
+                    {rel.kind === "outgoing_request" ? (
+                      <button
+                        type="button"
+                        onClick={() => onCancelRequest().catch((e: any) => void awAlert(e?.message ?? "Chyba"))}
+                        disabled={busy === "cancel-request"}
+                        className="block w-full rounded-xl px-3 py-2 text-left text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-60"
+                      >
+                        Zrušit žádost
+                      </button>
+                    ) : null}
+                    {rel.kind !== "connected" && rel.kind !== "outgoing_request" ? (
+                      <div className="px-3 py-2 text-sm text-slate-500">Žádné další akce.</div>
+                    ) : null}
+                  </div>
+                </details>
+              ) : null}
             </div>
           </div>
-        ) : null}
+        </div>
+      </div>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-2">
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <div className="text-sm font-semibold text-slate-900">Společná spojení</div>
+      <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(280px,360px)_1fr]">
+        <div className="space-y-5">
+          <IntroPanel title="Osobní údaje">
+            <IntroList
+              items={[
+                ...introItems,
+                ...awItems,
+                profile.created_at ? { icon: "calendar", text: <>Členem od {formatDateCZ(profile.created_at)}</> } : null,
+              ].filter((item): item is IntroItemData => Boolean(item))}
+              emptyText={
+                isConnected || isSelf
+                  ? "Uživatel zatím nevyplnil další osobní údaje."
+                  : "Další osobní údaje se zobrazí až po navázání spojení."
+              }
+            />
+          </IntroPanel>
+
+          {aboutItems.length > 0 ? (
+            <IntroPanel title="O mně">
+              <IntroList items={aboutItems} />
+            </IntroPanel>
+          ) : null}
+
+          {lifestyleItems.length > 0 ? (
+            <IntroPanel title="Životní styl">
+              <IntroList items={lifestyleItems} />
+            </IntroPanel>
+          ) : null}
+
+          {contactItems.length > 0 ? (
+            <IntroPanel title="Kontakt">
+              <IntroList items={contactItems} />
+            </IntroPanel>
+          ) : null}
+        </div>
+
+        <div className="space-y-5">
+          {profileChallenges.length > 0 ? (
+            <IntroPanel title="Výzvy">
+              <div className="space-y-2">
+                {profileChallenges.map((challenge) => (
+                  <Link
+                    key={challenge.id}
+                    href={`/challenges/${challenge.id}`}
+                    className="block rounded-xl bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 hover:text-emerald-700 hover:underline"
+                  >
+                    {challenge.title}
+                    <span className="ml-2 text-xs font-normal text-slate-500">
+                      {formatAwScoreForUi(challenge.baseline_aw_score_norm_pct)} → {formatAwScoreForUi(challenge.target_aw_score_norm_pct)}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </IntroPanel>
+          ) : null}
+
+          <IntroPanel title="Síť">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <NetworkMiniStat label="Sleduje" value={networkSummary.following_count} />
+              <NetworkMiniStat label="Sledující" value={networkSummary.followers_count} />
+              <NetworkMiniStat label="Společná spojení" value={networkSummary.mutual_connections_count} />
+              <NetworkMiniStat label="Oba sledujete" value={networkSummary.common_following_count} />
+            </div>
+          </IntroPanel>
+
+          <IntroPanel title="Společná spojení">
             {networkSummary.mutual_connections.length ? (
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2">
                 {networkSummary.mutual_connections.map((user) => (
                   <PersonChip key={user.user_id} user={user} />
                 ))}
               </div>
             ) : (
-              <div className="mt-2 text-sm text-slate-500">Zatím tu nejsou žádná společná spojení.</div>
+              <div className="text-sm text-slate-500">Zatím tu nejsou žádná společná spojení.</div>
             )}
-          </div>
+          </IntroPanel>
 
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <div className="text-sm font-semibold text-slate-900">Oba sledujete</div>
+          <IntroPanel title="Oba sledujete">
             {networkSummary.common_following.length ? (
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2">
                 {networkSummary.common_following.map((user) => (
                   <PersonChip key={user.user_id} user={user} />
                 ))}
               </div>
             ) : (
-              <div className="mt-2 text-sm text-slate-500">Zatím nesledujete stejné lidi.</div>
+              <div className="text-sm text-slate-500">Zatím nesledujete stejné lidi.</div>
             )}
+          </IntroPanel>
+
+          <div className="flex justify-end">
+            <button className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={() => router.back()}>
+              Zpět
+            </button>
           </div>
-        </div>
-
-        {!isConnected && !isSelf ? (
-          <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <div className="text-sm font-semibold text-slate-800">Více informací</div>
-            <div className="mt-1 text-sm text-slate-600">Podrobnější informace uvidíš po navázání spojení, případně pokud nejsou pole skrytá.</div>
-          </div>
-        ) : (
-          <div className="mt-6 space-y-6">
-            <SectionCard title="Identita">
-              <InfoRow label="Status" value={detailText(profile.relationship_status_hidden, profile.relationship_status)} />
-              <InfoRow label="Motivační věta" value={detailText(profile.motivation_text_hidden, profile.motivation_text)} />
-              <InfoRow label="Výška" value={Boolean(profile.height_cm_hidden) ? "Skryto" : profile.height_cm != null ? `${profile.height_cm} cm` : "—"} />
-              <InfoRow label="Váha" value={Boolean(profile.weight_kg_hidden) ? "Skryto" : profile.weight_kg != null ? `${profile.weight_kg} kg` : "—"} />
-            </SectionCard>
-
-            <SectionCard title="Zájmy">
-              <InfoRow label="O mně" value={detailText(profile.about_me_hidden, profile.about_me)} />
-              <InfoRow label="Zájmy" value={detailList(profile.interests_hidden, combinedInterests)} />
-              <InfoRow label="Životní cíle" value={detailList(profile.life_goals_hidden, combinedGoals)} />
-              <InfoRow label="Považuji se za" value={detailText(profile.self_view_hidden, profile.self_view)} />
-              <InfoRow label="Chci se zlepšit v" value={detailList(profile.improvement_areas_hidden, combinedAreas)} />
-            </SectionCard>
-
-            <SectionCard title="Životní styl">
-              <InfoRow label="Pohyb / Sport" value={detailList(profile.activities_hidden, combinedActivities)} />
-              <InfoRow label="Strava" value={detailText(profile.diet_preference_hidden, profile.diet_preference)} />
-              <InfoRow label="Alkohol" value={detailText(profile.alcohol_use_hidden, profile.alcohol_use)} />
-              <InfoRow label="Kouření" value={detailText(profile.smoking_hidden, profile.smoking)} />
-              <InfoRow
-                label="Drogy"
-                value={
-                  Boolean(profile.drugs_hidden)
-                    ? "Skryto"
-                    : profile.drug_light !== null || profile.drug_hard !== null
-                    ? (
-                        <div className="space-y-1">
-                          {profile.drug_light !== null ? <div>Lehké drogy: {profile.drug_light ? "Ano" : "Ne"}</div> : null}
-                          {profile.drug_hard !== null ? <div>Tvrdé drogy: {profile.drug_hard ? "Ano" : "Ne"}</div> : null}
-                        </div>
-                      )
-                    : "—"
-                }
-              />
-              <InfoRow label="Mindset" value={detailText(profile.mindset_hidden, profile.mindset)} />
-              <InfoRow label="Tempo života" value={detailText(profile.life_pace_hidden, profile.life_pace)} />
-            </SectionCard>
-          </div>
-        )}
-
-        <div className="mt-6 flex items-center justify-between gap-3">
-          <button className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50" onClick={() => router.back()}>
-            Zpět
-          </button>
-
-          {profile.created_at ? <div className="text-xs text-slate-500">Členem od: {formatDateCZ(profile.created_at)}</div> : null}
         </div>
       </div>
     </div>

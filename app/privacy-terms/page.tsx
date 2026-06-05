@@ -7,7 +7,7 @@
 
 export default function PrivacyTermsPage() {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="rounded-2xl bg-white p-6">
       <div className="mx-auto max-w-3xl space-y-6">
         <div className="space-y-2">
           <h1 className="text-2xl font-bold text-slate-900">Soukromí a podmínky používání služby AgeWinners</h1>

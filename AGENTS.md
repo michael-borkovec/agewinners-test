@@ -1,4 +1,4 @@
-\# AgeWinners (AW) — AI Agent Configuration
+\# AgeWinners (AW) â€” AI Agent Configuration
 
 
 
@@ -8,7 +8,7 @@ AgeWinners is a React + Supabase social network focused on wellbeing, beauty, sp
 
 
 
-Audience: ages 16–116, primarily urban, diverse, and lifestyle-oriented.
+Audience: ages 16â€“116, primarily urban, diverse, and lifestyle-oriented.
 
 
 
@@ -174,7 +174,7 @@ Use project context in this order of importance:
 
 
 
-\### 1. AW Logic — Source of Truth
+\### 1. AW Logic â€” Source of Truth
 
 All AW calculations, visibility, reveal logic, comment access, retroactive visibility changes, and AW recomputation must follow the official AgeWinners logic specification.
 
@@ -382,3 +382,33 @@ Each file should start with a short header comment in this format:
 
 &#x20;\*/
 
+
+
+\## UI Consistency Rules
+
+\- V akčních hlavičkách vždy zachovat pořadí ikon zleva doprava:
+
+&#x20;  - nápověda (`?`)
+
+&#x20;  - nastavení
+
+&#x20;  - filtr / trychtýř
+
+&#x20;  - refresh
+
+\- Pokud některá ikona chybí, zbývající ikony zachovají stejné relativní pořadí.
+
+&#x20;  - příklad bez nastavení a filtru: `?` → `refresh`
+
+
+\## Text Encoding Rules
+
+\- Při každé tvorbě nebo úpravě textů vždy zachovat správné UTF-8 kódování.
+
+\- Po změně českých textů vždy zkontrolovat, že se diakritika zobrazuje správně:
+
+&#x20;  - žádné znaky typu `Ã`, `Ä`, `Å`, `â`
+
+&#x20;  - žádné chybějící háčky a čárky
+
+\- Před dokončením změny u uživatelských textů ověřit alespoň dotčené soubory vyhledáním mojibake znaků.

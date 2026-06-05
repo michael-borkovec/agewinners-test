@@ -56,7 +56,7 @@ export default function RefreshIconButton({
       title={title}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={animating && activeIconPath ? activeIconPath : "/refresh.ico"} alt="" className="h-5 w-5" />
+      <img src="/icons/action/refresh.png" alt="" className={`h-5 w-5 object-contain ${animating ? "animate-spin" : ""}`} />
     </button>
   );
 }

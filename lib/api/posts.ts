@@ -32,6 +32,7 @@
 
 import { supabase } from "@/lib/supabaseClient";
 import { getStoriesForPosts } from "@/lib/api/postStories";
+import { normalizeAwDirectionKeys } from "@/lib/awDirections";
 
 /** Legacy predefined tag values, formerly image categories. */
 export type PredefinedPhotoTag =
@@ -70,6 +71,9 @@ const PREDEFINED_PHOTO_TAGS = new Set<string>(Object.keys(PHOTO_TAG_LABELS));
 type AnyRow = Record<string, any>;
 const ANONYMOUS_AUTHOR_LABEL = "Anonymní uživatel";
 let hiddenImagesTableAvailable: boolean | null = null;
+let gamifiedFeedRpcAvailable: boolean | null = null;
+const AUTHOR_PROFILE_CACHE_TTL_MS = 30_000;
+const authorProfileCache = new Map<string, { row: AnyRow; cachedAt: number }>();
 
 function uniq<T>(arr: T[]) {
   return Array.from(new Set(arr));
@@ -135,6 +139,30 @@ async function loadImageTags(imageIds: number[]): Promise<Map<number, string[]>>
     if (!imageId || !tag) continue;
     const current = out.get(imageId) ?? [];
     current.push(tag);
+    out.set(imageId, current);
+  }
+
+  return out;
+}
+
+async function loadImageAwDirections(imageIds: number[]): Promise<Map<number, string[]>> {
+  const out = new Map<number, string[]>();
+  if (imageIds.length === 0) return out;
+
+  const { data, error } = await supabase.from("image_aw_directions").select("image_id, direction_key").in("image_id", imageIds);
+
+  if (error) {
+    if (error.message?.includes("Could not find the table 'public.image_aw_directions'")) return out;
+    console.warn("posts.ts: image_aw_directions load failed:", error.message);
+    return out;
+  }
+
+  for (const row of (data ?? []) as AnyRow[]) {
+    const imageId = toInt(row.image_id);
+    const directions = normalizeAwDirectionKeys([row.direction_key]);
+    if (!imageId || directions.length === 0) continue;
+    const current = out.get(imageId) ?? [];
+    current.push(directions[0]);
     out.set(imageId, current);
   }
 
@@ -317,6 +345,48 @@ async function loadHiddenImageIds(currentUserId: string): Promise<Set<number>> {
   return new Set((data ?? []).map((row: AnyRow) => toInt(row.image_id)).filter((id) => id > 0));
 }
 
+type FeedCandidateRow = {
+  imageId: number;
+  postId: number;
+  feedScore: number | null;
+  selectionBucket: "preferred" | "random" | string;
+};
+
+async function loadGamifiedFeedImageBatch(params: {
+  categories: PhotoCategory[];
+  limit: number;
+  hiddenMode: "exclude" | "include" | "only";
+}): Promise<FeedCandidateRow[] | null> {
+  if (gamifiedFeedRpcAvailable === false) return null;
+
+  const { data, error } = await supabase.rpc("get_gamified_feed_image_batch", {
+    p_limit: params.limit,
+    p_tags: normalizeImageTags(params.categories),
+    p_hidden_mode: params.hiddenMode,
+  });
+
+  if (error) {
+    if (error.message?.includes("get_gamified_feed_image_batch") || error.message?.includes("Could not find the function")) {
+      gamifiedFeedRpcAvailable = false;
+      console.warn("getFeedPosts: gamified feed RPC is not available yet, using legacy feed loader.");
+      return null;
+    }
+
+    throw error;
+  }
+
+  gamifiedFeedRpcAvailable = true;
+
+  return ((data ?? []) as AnyRow[])
+    .map((row) => ({
+      imageId: toInt(row.image_id),
+      postId: toInt(row.post_id),
+      feedScore: row.feed_score == null ? null : Number(row.feed_score),
+      selectionBucket: String(row.selection_bucket ?? ""),
+    }))
+    .filter((row) => row.imageId > 0 && row.postId > 0);
+}
+
 function canViewerAccessVisibility(params: {
   currentUserId: string;
   authorUserId: string;
@@ -343,18 +413,22 @@ async function loadPostsWithImages(params: {
   includeSensitiveImageFields: boolean;
   limit: number;
   offset: number;
+  postIds?: number[];
 }) {
-  const { postFilter, currentUserId, includeSensitiveImageFields, limit, offset } = params;
+  const { postFilter, currentUserId, includeSensitiveImageFields, limit, offset, postIds: requestedPostIds } = params;
 
   // 1) Load posts
-  const postsQ = postFilter(
+  const postIdFilter = uniq((requestedPostIds ?? []).map(toInt).filter((id) => id > 0));
+  const basePostsQ = postFilter(
     supabase
       .from("posts")
       .select("id, created_at, author_user_id, title, text, visibility, hidden_by_suspension")
       .eq("hidden_by_suspension", false)
-      .order("created_at", { ascending: false })
-      .range(offset, offset + limit - 1)
   );
+  const postsQ =
+    postIdFilter.length > 0
+      ? basePostsQ.in("id", postIdFilter)
+      : basePostsQ.order("created_at", { ascending: false }).range(offset, offset + limit - 1);
 
   const { data: postRows, error: postsErr } = await postsQ;
   if (postsErr) throw postsErr;
@@ -365,15 +439,35 @@ async function loadPostsWithImages(params: {
 
   // 2) Load authors (user_profiles)
   const authorIds = uniq(posts.map((p) => String(p.author_user_id)).filter(Boolean));
-  const { data: profRows, error: profErr } = await supabase
-    .from("user_profiles")
-    .select("user_id, display_name, avatar_url, account_status")
-    .in("user_id", authorIds);
-
-  if (profErr) console.warn("posts.ts: user_profiles load failed:", profErr.message);
-
   const profileByUserId = new Map<string, AnyRow>();
-  (profRows ?? []).forEach((r: AnyRow) => profileByUserId.set(String(r.user_id), r));
+  const now = Date.now();
+  const uncachedAuthorIds: string[] = [];
+
+  for (const authorId of authorIds) {
+    const cached = authorProfileCache.get(authorId);
+    if (cached && now - cached.cachedAt <= AUTHOR_PROFILE_CACHE_TTL_MS) {
+      profileByUserId.set(authorId, cached.row);
+    } else {
+      uncachedAuthorIds.push(authorId);
+    }
+  }
+
+  if (uncachedAuthorIds.length > 0) {
+    const { data: profRows, error: profErr } = await supabase
+      .from("user_profiles")
+      .select("user_id, display_name, avatar_url, account_status")
+      .in("user_id", uncachedAuthorIds);
+
+    if (profErr) {
+      console.warn("posts.ts: user_profiles load failed:", profErr.message);
+    } else {
+      (profRows ?? []).forEach((r: AnyRow) => {
+        const userId = String(r.user_id);
+        profileByUserId.set(userId, r);
+        authorProfileCache.set(userId, { row: r, cachedAt: now });
+      });
+    }
+  }
 
   // 3) Load post_images
   const { data: piRows, error: piErr } = await supabase
@@ -406,6 +500,7 @@ async function loadPostsWithImages(params: {
   const imageById = new Map<number, AnyRow>();
   (imgRows ?? []).forEach((r: AnyRow) => imageById.set(toInt(r.id), r));
   const tagsByImageId = await loadImageTags(imageIds);
+  const awDirectionsByImageId = await loadImageAwDirections(imageIds);
   const allImageTags = uniq(Array.from(tagsByImageId.values()).flat());
   const challengeByTag = await loadChallengeTags(allImageTags);
 
@@ -498,6 +593,7 @@ async function loadPostsWithImages(params: {
       base.storage_path_thumb = img.storage_path_thumb ?? null;
       base.comments_count = commentCountByImageId.get(toInt(img.id)) ?? 0;
       base.tags = tagsByImageId.get(toInt(img.id)) ?? normalizeImageTags([img.photo_category]);
+      base.aw_directions = awDirectionsByImageId.get(toInt(img.id)) ?? [];
       base.challengeTags = base.tags
         .map((tag: string) => challengeByTag.get(normalizeImageTag(tag)))
         .filter(Boolean)
@@ -564,26 +660,38 @@ function hasAnyImages(p: any): boolean {
  */
 export async function getFeedPosts(params: {
   currentUserId: string;
+  isPrivilegedViewer?: boolean;
   categories?: PhotoCategory[];
   limit?: number;
   offset?: number;
   excludeFullyGuessed?: boolean;
   hiddenMode?: "exclude" | "include" | "only";
 }) {
-  const { currentUserId, categories = [], limit = 30, offset = 0, excludeFullyGuessed = true, hiddenMode = "exclude" } = params;
+  const { currentUserId, isPrivilegedViewer: providedIsPrivilegedViewer, categories = [], limit = 30, offset = 0, excludeFullyGuessed = true, hiddenMode = "exclude" } = params;
 
   if (!currentUserId) throw new Error("getFeedPosts: missing currentUserId");
+
+  const gamifiedBatch = await loadGamifiedFeedImageBatch({
+    categories,
+    limit,
+    hiddenMode,
+  });
+  const gamifiedImageOrder = new Map<number, number>();
+  const gamifiedPostIds = gamifiedBatch?.map((row) => row.postId) ?? [];
+  gamifiedBatch?.forEach((row, index) => gamifiedImageOrder.set(row.imageId, index));
+  if (gamifiedBatch && gamifiedBatch.length === 0) return [];
 
   const postsAll = await loadPostsWithImages({
     currentUserId,
     includeSensitiveImageFields: false,
-    limit,
+    limit: gamifiedPostIds.length > 0 ? gamifiedPostIds.length : limit,
     offset,
+    postIds: gamifiedPostIds,
     postFilter: (q) => q.neq("author_user_id", currentUserId),
   });
 
   const acceptedContactUserIds = await loadAcceptedContactUserIds(currentUserId);
-  const isPrivilegedViewer = await loadViewerPrivilege(currentUserId);
+  const isPrivilegedViewer = providedIsPrivilegedViewer ?? (await loadViewerPrivilege(currentUserId));
   const hiddenPostIds = await loadHiddenPostIds(currentUserId);
   const hiddenImageIds = await loadHiddenImageIds(currentUserId);
 
@@ -674,6 +782,17 @@ export async function getFeedPosts(params: {
       ];
     });
   });
+
+  if (gamifiedBatch) {
+    return photoCards
+      .filter((post: any) => gamifiedImageOrder.has(toInt(post.images?.[0]?.id)))
+      .sort(
+        (a: any, b: any) =>
+          (gamifiedImageOrder.get(toInt(a.images?.[0]?.id)) ?? Number.MAX_SAFE_INTEGER) -
+          (gamifiedImageOrder.get(toInt(b.images?.[0]?.id)) ?? Number.MAX_SAFE_INTEGER)
+      )
+      .slice(0, limit);
+  }
 
   return shuffleArray(photoCards).slice(0, limit);
 }

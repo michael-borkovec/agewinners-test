@@ -2,7 +2,7 @@
  * app/profile/personal/page.tsx
  *
  * Purpose:
- * - "Muj profil ? Personal" (/profile/personal)
+ * - "Můj profil -> O mně" (/profile/personal)
  * - Edit user personal profile fields:
  *   A) Identita & Sebevyjádrení
  *   B) Zájmy
@@ -10,12 +10,12 @@
  *
  * Key requirements:
  * - Nic není povinné.
- * - Limity výberu:
+ * - Limity výběru:
  *   - primary_interests: max 3
- *   - interests: max 5 (vcetne vlastních)
- *   - life_goals: max 5 (vcetne vlastních)
- *   - activities: max 5 (vcetne vlastních)
- *   - improvement_areas: max 5 (vcetne vlastních)
+ *   - interests: max 5 (včetně vlastních)
+ *   - life_goals: max 5 (včetně vlastních)
+ *   - activities: max 5 (včetně vlastních)
+ *   - improvement_areas: max 5 (včetně vlastních)
  *   - jazyky: neomezene
  * - Per-field privacy toggle je boolean (*_hidden).
  *
@@ -32,7 +32,9 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import AwButton from "@/components/AwButton";
 import CloseButton from "@/components/CloseButton";
+import HelpIconButton from "@/components/HelpIconButton";
 import { awAlert } from "@/components/AwDialog";
+import { ProfileHero } from "@/app/profile/components/ProfileSurface";
 import type {
   DbUserProfile,
   EducationLevel,
@@ -69,22 +71,22 @@ const EDUCATION_LEVELS: EducationLevel[] = [
 const REL_STATUS: RelationshipStatus[] = PERSONAL_RELATIONSHIP_STATUS_OPTIONS;
 
 const LANGUAGES = [
-  "Ceština",
+  "Čeština",
   "Slovenština",
-  "Anglictina",
-  "Nemcina",
+  "Angličtina",
+  "Němčina",
   "Francouzština",
   "Španelština",
   "Italština",
   "Polština",
-  "Madarština",
+  "Maďarština",
   "Rumunština",
   "Bulharština",
   "Srbština/Chorvatština",
   "Slovinština",
   "Ruština",
   "Ukrajinština",
-  "Cínština",
+  "Čínština",
   "Japonština",
   "Korejština",
   "Arabština",
@@ -95,8 +97,8 @@ const LANGUAGES = [
   "Norština",
   "Dánština",
   "Finština",
-  "Turectina",
-  "Rectina",
+  "Turečtina",
+  "Řečtina",
 ];
 
 const PRIMARY_INTERESTS = [
@@ -114,7 +116,7 @@ const PRIMARY_INTERESTS = [
 const INTERESTS = [
   "Sport obecne",
   "Fitness / posilování",
-  "Beh",
+  "Běh",
   "Kolo",
   "Turistika",
   "Jóga / pilates",
@@ -135,15 +137,15 @@ const INTERESTS = [
   "Osobní rozvoj",
   "Meditace / mindfulness",
   "Moderní technologie",
-  "Umelá inteligence",
+  "Umělá inteligence",
   "Veda",
   "Historie",
-  "Umení",
+  "Umění",
   "Dobrovolnictví",
   "Podnikání",
   "Finance",
   "Vztahy & komunikace",
-  "Politika & dení",
+  "Politika & dění",
   "Spolecnost",
 ];
 
@@ -162,14 +164,14 @@ const LIFE_GOALS = [
   "Být spokojenejší",
   "Být úspešný ve sportu",
   "Být úspešný v práci",
-  "Zmenit práci / najít práci",
+  "Změnit práci / najít práci",
   "Naucit se nový skill",
   "Najít partnera",
   "Zlepšit vztahy",
   "Založit rodinu",
   "Založit firmu / podnikat",
   "Víc cestovat",
-  "Více casu pro sebe",
+  "Více času pro sebe",
   "Zlepšit sebevedomí",
   "Být disciplinovanejší",
 ];
@@ -190,21 +192,21 @@ const IMPROVEMENT_AREAS = [
   "Komunikace",
   "Sebevedomí",
   "Disciplína",
-  "Organizace casu",
+  "Organizace času",
   "Financní gramotnost",
   "Zdraví",
   "Fyzická kondice",
   "Psychická pohoda",
   "Kreativita",
   "Trpelivost",
-  "Soustredení",
-  "Anglictina / jazyky",
+  "Soustředění",
+  "Angličtina / jazyky",
   "Prezentace / vystupování",
 ];
 
 const ACTIVITIES = [
   // Sports
-  "Beh",
+  "Běh",
   "Fitness / posilování",
   "Kolo",
   "Plavání",
@@ -223,14 +225,14 @@ const ACTIVITIES = [
   "Bojové sporty",
   "Golf",
   // Movement
-  "Chuze",
+  "Chůze",
   "Turistika",
   "Nordic walking",
   "Domácí cvicení",
   "Protažení / mobilita",
   "Vencení psu",
   "Práce na zahrade",
-  "Aktivní dojíždení (pešky/kolo)",
+  "Aktivní dojíždění (pěšky/kolo)",
 ];
 
 const DIET: DietPreference[] = PERSONAL_DIET_PREFERENCE_OPTIONS;
@@ -239,9 +241,11 @@ const ALCOHOL: AlcoholUse[] = ["Abstinent", "Výjimečně", "Občas", "Často", 
 const SMOKING: Smoking[] = ["Nekouřím", "Výjimečně", "Občas", "Denně", "Závislý", "Nechci uvádět"];
 const MINDSET: Mindset[] = ["Klid", "Motivace", "Růst", "Radost", "Rovnováha", "Nechci uvádět"];
 const LIFE_PACE: LifePace[] = ["Pomalé", "Vyvážené", "Aktivní", "Velmi aktivní", "Nechci uvádět"];
-const SENSITIVE_BOOLEAN_OPTIONS = ["Ano", "Ne", "Nechci uvádet"] as const;
+const SENSITIVE_BOOLEAN_OPTIONS = ["Ano", "Ne", "Nechci uvádět"] as const;
 const SENSITIVE_FIELD_INFO_TEXT =
-  "Dobrovolný citlivý údaj. Nemusíš jej uvádet a mužeš jej kdykoli skrýt. Muže být využit pro personalizaci služby a – s tvým souhlasem – i pro cílení obsahu a reklamy.";
+  "Dobrovolný citlivý údaj. Nemusíš jej uvádět a můžeš jej kdykoli skrýt. Může být využit pro personalizaci služby a s tvým souhlasem i pro cílení obsahu a reklamy.";
+
+type PersonalTab = "identity" | "interests" | "lifestyle";
 
 /* ----------------------------- */
 /*  Helpers                      */
@@ -269,7 +273,7 @@ function limitAdd(list: string[], value: string, max: number) {
 function nullableBooleanToChoice(value: boolean | null): string {
   if (value === true) return "Ano";
   if (value === false) return "Ne";
-  return "Nechci uvádet";
+  return "Nechci uvádět";
 }
 
 function choiceToNullableBoolean(value: string): boolean | null {
@@ -325,12 +329,13 @@ function PrivacyIconToggle({
       aria-label={tooltip}
       aria-pressed={hidden}
       title={tooltip}
-      className={`inline-flex items-center justify-center rounded-lg border px-2 py-2 transition
+      className={`inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-bold transition
         ${disabled ? "cursor-not-allowed opacity-40" : "hover:bg-slate-100"}
-        ${hidden ? "border-slate-300 bg-white" : "border-slate-200 bg-white"}
+        ${hidden ? "bg-slate-200 text-slate-700" : "bg-[#effdef] text-emerald-900"}
       `}
     >
       <img src={iconSrc} alt="" className={`h-5 w-5 ${disabled ? "opacity-60" : "opacity-100"}`} />
+      <span>{hidden ? "Skryto" : "Vidí ostatní"}</span>
     </button>
   );
 }
@@ -345,7 +350,7 @@ function SensitiveInfoButton({ text }: { text: string }) {
         onClick={() => setOpen(true)}
         aria-label={text}
         title={text}
-        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-sm font-bold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+        className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-white text-sm font-bold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
       >
         ?
       </button>
@@ -416,7 +421,7 @@ function SearchableChipSelect({
     }
 
     if (count >= max) {
-      void awAlert(`Mužeš vybrat max. ${max} položek (vcetne vlastních).`);
+      void awAlert(`Můžeš vybrat max. ${max} položek (včetně vlastních).`);
       return;
     }
 
@@ -439,7 +444,7 @@ function SearchableChipSelect({
     }
 
     if (count >= max) {
-      void awAlert(`Mužeš vybrat max. ${max} položek (vcetne vlastních).`);
+      void awAlert(`Můžeš vybrat max. ${max} položek (včetně vlastních).`);
       return;
     }
 
@@ -459,7 +464,7 @@ function SearchableChipSelect({
   const hasMore = !search.trim() && filteredOptions.length > visibleOptions.length;
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+    <div className="rounded-xl bg-slate-50 p-3">
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-sm font-semibold text-slate-800">{title}</div>
@@ -469,11 +474,10 @@ function SearchableChipSelect({
           </div>
         </div>
 
-        <PrivacyIconToggle hidden={hidden} setHidden={setHidden} />
       </div>
 
       {count > 0 ? (
-        <div className="mt-3 rounded-xl border border-emerald-200 bg-white p-3">
+        <div className="mt-3 rounded-xl bg-white p-3">
           <div className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Vybrané hodnoty</div>
           <div className="mt-2 flex flex-wrap gap-2">
             {selected.map((item) => (
@@ -481,7 +485,7 @@ function SearchableChipSelect({
                 key={`selected-${item}`}
                 type="button"
                 onClick={() => toggle(item)}
-                className="rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-900 hover:bg-emerald-100"
+                className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-900 hover:bg-emerald-100"
                 title="Klikni pro odebrání"
               >
                 {item} ×
@@ -492,7 +496,7 @@ function SearchableChipSelect({
                 key={`custom-${item}`}
                 type="button"
                 onClick={() => removeCustom(item)}
-                className="rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-900 hover:bg-emerald-100"
+                className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-900 hover:bg-emerald-100"
                 title="Klikni pro odebrání"
               >
                 {item} ×
@@ -511,7 +515,7 @@ function SearchableChipSelect({
               setExpanded(false);
             }}
             placeholder="Hledat v možnostech…"
-            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500"
+            className="w-full rounded-xl bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-100"
           />
         </div>
       ) : null}
@@ -537,7 +541,7 @@ function SearchableChipSelect({
       </div>
 
       {filteredOptions.length === 0 ? (
-        <div className="mt-3 rounded-xl border border-dashed border-slate-200 bg-white px-3 py-2 text-sm text-slate-500">
+        <div className="mt-3 rounded-xl bg-white px-3 py-2 text-sm text-slate-500">
           Žádná možnost neodpovídá hledání.
         </div>
       ) : null}
@@ -554,11 +558,11 @@ function SearchableChipSelect({
             <input
               value={customInput}
               onChange={(e) => setCustomInput(e.target.value)}
-              placeholder="Pridat vlastní…"
-              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500"
+              placeholder="Přidat vlastní…"
+              className="w-full rounded-xl bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-100"
             />
             <AwButton onClick={addCustom}>
-              Pridat
+              Přidat
             </AwButton>
           </div>
 
@@ -569,7 +573,7 @@ function SearchableChipSelect({
                   key={c}
                   type="button"
                   onClick={() => removeCustom(c)}
-                  className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-800 hover:bg-slate-50"
+                  className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-800 hover:bg-slate-50"
                   title="Klikni pro odebrání"
                 >
                   {c} ?
@@ -582,7 +586,6 @@ function SearchableChipSelect({
     </div>
   );
 }
-
 function ChoiceGrid({
   options,
   value,
@@ -596,7 +599,7 @@ function ChoiceGrid({
 }) {
   return (
     <div className="space-y-3">
-      <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+      <div className="rounded-xl bg-white px-3 py-2">
         <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Aktuální volba</div>
         <div className="mt-1 text-sm font-semibold text-slate-900">{value || emptyLabel}</div>
       </div>
@@ -605,10 +608,10 @@ function ChoiceGrid({
         <button
           type="button"
           onClick={() => onChange("")}
-          className={`rounded-xl border px-3 py-2 text-left text-sm font-semibold transition ${
+          className={`rounded-xl px-3 py-2 text-left text-sm font-semibold transition ${
             !value
-              ? "border-emerald-300 bg-emerald-50 text-emerald-900"
-              : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+              ? "bg-emerald-50 text-emerald-900"
+              : "bg-white text-slate-700 hover:bg-slate-50"
           }`}
         >
           {emptyLabel}
@@ -621,10 +624,10 @@ function ChoiceGrid({
               key={option}
               type="button"
               onClick={() => onChange(option)}
-              className={`rounded-xl border px-3 py-2 text-left text-sm font-semibold transition ${
+              className={`rounded-xl px-3 py-2 text-left text-sm font-semibold transition ${
                 active
-                  ? "border-emerald-300 bg-emerald-50 text-emerald-900"
-                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  ? "bg-emerald-50 text-emerald-900"
+                  : "bg-white text-slate-700 hover:bg-slate-50"
               }`}
             >
               {option}
@@ -658,7 +661,7 @@ function FieldRow({
   privacyTooltipHidden?: string;
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+    <div className="rounded-xl bg-slate-50 p-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="text-sm font-semibold text-slate-800">{label}</div>
@@ -668,18 +671,25 @@ function FieldRow({
         <div className="flex items-center gap-2">
           {infoText ? <SensitiveInfoButton text={infoText} /> : null}
 
-          <PrivacyIconToggle
-            hidden={hidden}
-            setHidden={setHidden}
-            disabled={disablePrivacyToggle}
-            titleVisible={privacyTooltipVisible}
-            titleHidden={privacyTooltipHidden}
-          />
         </div>
       </div>
 
       <div className="mt-3">{children}</div>
     </div>
+  );
+}
+
+function PersonalTabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full px-3 py-1.5 transition ${
+        active ? "bg-[#effdef] text-emerald-900" : "bg-slate-50 text-slate-700 hover:bg-slate-100"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -691,6 +701,7 @@ export default function ProfilePersonalPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<DbUserProfile | null>(null);
+  const [activeTab, setActiveTab] = useState<PersonalTab>("identity");
 
   // A) Identita & Sebevyjádrení
   const [occupation, setOccupation] = useState("");
@@ -779,7 +790,9 @@ export default function ProfilePersonalPage() {
     async function load() {
       setLoading(true);
       try {
-        const p: any = await getMyProfile();
+        const result = await getMyProfile();
+        if (result.errorMessage || !result.data) throw new Error(result.errorMessage ?? "Profil se nepodařilo načíst.");
+        const p: any = result.data;
         if (cancelled) return;
 
         setProfile(p);
@@ -862,7 +875,7 @@ export default function ProfilePersonalPage() {
         setPersonalizationConsentChecked(Boolean(p.personalization_ads_consent ?? false));
         setPersonalizationConsentAt((p.personalization_ads_consent_at as string | null) ?? null);
       } catch (e: any) {
-        await awAlert(e?.message ?? "Personal profil se nepodarilo nacíst.");
+        await awAlert(e?.message ?? "Profil O mně se nepodařilo načíst.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -877,17 +890,17 @@ export default function ProfilePersonalPage() {
   async function handleSave() {
     if (!canSave) return;
     if (!personalizationConsentChecked) {
-      await awAlert("Pro uložení je potreba zaškrtnout souhlas s využitím údaju pro personalizaci a cílení reklamy.");
+      await awAlert("Pro uložení je potřeba zaškrtnout souhlas s využitím údajů pro personalizaci a cílení reklamy.");
       return;
     }
 
     // Safety validation (UI also enforces)
     if (primaryInterests.length > 3) return void (await awAlert("Primární zájem: max 3."));
-    if (interests.length + interestsCustom.length > 5) return void (await awAlert("Zájmy: max 5 (vcetne vlastních)."));
-    if (lifeGoals.length + lifeGoalsCustom.length > 5) return void (await awAlert("Životní cíle: max 5 (vcetne vlastních)."));
-    if (activities.length + activitiesCustom.length > 5) return void (await awAlert("Pohyb/Sport: max 5 (vcetne vlastních)."));
+    if (interests.length + interestsCustom.length > 5) return void (await awAlert("Zájmy: max 5 (včetně vlastních)."));
+    if (lifeGoals.length + lifeGoalsCustom.length > 5) return void (await awAlert("Životní cíle: max 5 (včetně vlastních)."));
+    if (activities.length + activitiesCustom.length > 5) return void (await awAlert("Pohyb/Sport: max 5 (včetně vlastních)."));
     if (improvementAreas.length + improvementAreasCustom.length > 5)
-      return void (await awAlert("V cem se chci zlepšit: max 5 (vcetne vlastních)."));
+      return void (await awAlert("V čem se chci zlepšit: max 5 (včetně vlastních)."));
 
     setSaving(true);
     try {
@@ -974,12 +987,12 @@ export default function ProfilePersonalPage() {
       await updateMyPersonalProfile(patch);
       setPersonalizationConsentAt(consentAtToSave);
 
-      const refreshed: any = await getMyProfile();
-      setProfile(refreshed);
+      const refreshed = await getMyProfile();
+      if (refreshed.data) setProfile(refreshed.data);
 
       await awAlert("Uloženo.");
     } catch (e: any) {
-      await awAlert(e?.message ?? "Uložení se nepodarilo.");
+      await awAlert(e?.message ?? "Uložení se nepodařilo.");
     } finally {
       setSaving(false);
     }
@@ -989,7 +1002,7 @@ export default function ProfilePersonalPage() {
     return (
       <div className="mx-auto max-w-3xl p-6">
         <div className="rounded-2xl bg-white p-5 shadow">
-          <div className="text-slate-600">Nacítám Personal…</div>
+          <div className="text-slate-600">Načítám profil O mně…</div>
         </div>
       </div>
     );
@@ -1006,16 +1019,32 @@ export default function ProfilePersonalPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl p-6">
-      <div className="rounded-2xl bg-white p-5 shadow">
+    <div className="mx-auto max-w-3xl space-y-5 p-6">
+      <ProfileHero
+        title="O mně"
+        description="Vyber jen to, co chceš sdílet nebo použít pro lepší doporučení obsahu. Každou citlivější položku můžeš samostatně skrýt."
+      />
+
+      <div className="rounded-2xl bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-lg font-semibold text-slate-900">Více o me</h1>
-            <p className="mt-1 text-[0.7rem] italic text-slate-600">
-              Vypln jen to, co chceš. Nekteré údaje slouží k personalizaci obsahu a lepšímu fungování komunity.
-              Citlivé údaje jsou vždy dobrovolné, mužeš je skrýt nebo kdykoli smazat. Pro analytiku a zlepšování
-              služby používáme data pouze v anonymizované podobe.
-            </p>
+            <div className="flex items-start justify-between gap-3">
+              <h1 className="text-lg font-semibold text-slate-900">Podrobnosti profilu</h1>
+              <HelpIconButton
+                title="Nápověda: Podrobnosti profilu"
+                modalTitle="Podrobnosti profilu"
+                helpText={
+                  "Vyplň jen to, co chceš. Některé údaje slouží k personalizaci obsahu a lepšímu fungování komunity.\n\nCitlivé údaje jsou vždy dobrovolné, můžeš je skrýt nebo kdykoli smazat. Pro analytiku a zlepšování služby používáme data pouze v anonymizované podobě."
+                }
+                className="-mt-2"
+                iconClassName="h-4 w-4"
+                breadcrumbs={[
+                  { label: "Můj profil", href: "/profile" },
+                  { label: "O mně", href: "/profile/personal" },
+                  { label: "Podrobnosti profilu" },
+                ]}
+              />
+            </div>
           </div>
 
           <AwButton variant="primary" onClick={handleSave} disabled={!canSave}>
@@ -1023,77 +1052,78 @@ export default function ProfilePersonalPage() {
           </AwButton>
         </div>
 
+        <nav className="mt-5 flex flex-wrap gap-2 text-xs font-bold" aria-label="Části profilu O mně">
+          <PersonalTabButton active={activeTab === "identity"} onClick={() => setActiveTab("identity")}>Identita</PersonalTabButton>
+          <PersonalTabButton active={activeTab === "interests"} onClick={() => setActiveTab("interests")}>Zájmy a cíle</PersonalTabButton>
+          <PersonalTabButton active={activeTab === "lifestyle"} onClick={() => setActiveTab("lifestyle")}>Životní styl</PersonalTabButton>
+        </nav>
+
         {/* A) Identita */}
-        <section className="mt-6">
+        {activeTab === "identity" ? (
+        <section id="profil-identita" className="mt-6 scroll-mt-28">
           <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">Identita & Sebevyjádrení</h2>
           <div className="mt-3 grid gap-3">
             <FieldRow
               label="Povolání"
-              description="Nepovinné. Mužeš vyplnit i když jsi student."
+              description="Nepovinné. Můžeš vyplnit i když jsi student."
               hidden={occupationHidden}
               setHidden={setOccupationHidden}
             >
               <input
                 value={occupation}
                 onChange={(e) => setOccupation(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                placeholder="Napr. Graficka, programátor, ucitel…"
+                className="w-full rounded-xl bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-100"
+                placeholder="Např. grafička, programátor, učitel…"
               />
 
               {/* Student: value checkbox + privacy icon */}
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3">
+              <div className="mt-3 rounded-xl bg-white p-3">
                 <label className="flex items-center gap-2 text-sm text-slate-800">
                   <input type="checkbox" checked={isStudent} onChange={(e) => setIsStudent(e.target.checked)} />
                   Student
                 </label>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-600">Zobrazení</span>
-                  <PrivacyIconToggle hidden={isStudentHidden} setHidden={setIsStudentHidden} />
-                </div>
               </div>
             </FieldRow>
 
-            <FieldRow label="Vzdelání" hidden={educationLevelHidden} setHidden={setEducationLevelHidden}>
-              <ChoiceGrid options={EDUCATION_LEVELS} value={educationLevel} onChange={setEducationLevel} emptyLabel="Nechci uvádet / bez výberu" />
+            <FieldRow label="Vzdělání" hidden={educationLevelHidden} setHidden={setEducationLevelHidden}>
+              <ChoiceGrid options={EDUCATION_LEVELS} value={educationLevel} onChange={setEducationLevel} emptyLabel="Nechci uvádět / bez výběru" />
             </FieldRow>
 
-            <FieldRow label="Rodný jazyk(y)" hidden={nativeLanguagesHidden} setHidden={setNativeLanguagesHidden}>
-              <SearchableChipSelect
-                title="Rodný jazyk"
-                subtitle="Zacni psát a rychle najdeš jazyk v seznamu."
-                options={LANGUAGES}
-                selected={nativeLanguages}
-                setSelected={setNativeLanguages}
-                max={999}
-                hidden={nativeLanguagesHidden}
-                setHidden={setNativeLanguagesHidden}
-              />
-            </FieldRow>
-
-            <FieldRow label="Další jazyky" hidden={otherLanguagesHidden} setHidden={setOtherLanguagesHidden}>
-              <SearchableChipSelect
-                title="Další jazyky"
-                subtitle="Kliknutím pridáš nebo odebereš jazyk. Hledání funguje i bez diakritiky."
-                options={LANGUAGES}
-                selected={otherLanguages}
-                setSelected={setOtherLanguages}
-                max={999}
-                hidden={otherLanguagesHidden}
-                setHidden={setOtherLanguagesHidden}
-              />
+            <FieldRow label="Jazyky" hidden={nativeLanguagesHidden || otherLanguagesHidden} setHidden={() => undefined}>
+              <div className="grid gap-3">
+                <SearchableChipSelect
+                  title="Rodný jazyk"
+                  subtitle="Začni psát a rychle najdeš jazyk v seznamu."
+                  options={LANGUAGES}
+                  selected={nativeLanguages}
+                  setSelected={setNativeLanguages}
+                  max={999}
+                  hidden={nativeLanguagesHidden}
+                  setHidden={setNativeLanguagesHidden}
+                />
+                <SearchableChipSelect
+                  title="Další jazyky"
+                  subtitle="Kliknutím přidáš nebo odebereš jazyk. Hledání funguje i bez diakritiky."
+                  options={LANGUAGES}
+                  selected={otherLanguages}
+                  setSelected={setOtherLanguages}
+                  max={999}
+                  hidden={otherLanguagesHidden}
+                  setHidden={setOtherLanguagesHidden}
+                />
+              </div>
             </FieldRow>
 
             <FieldRow label="Vztahový status" hidden={relationshipStatusHidden} setHidden={setRelationshipStatusHidden}>
               <ChoiceGrid options={REL_STATUS} value={relationshipStatus} onChange={setRelationshipStatus} />
             </FieldRow>
 
-            <FieldRow label="Motivacní veta" hidden={motivationTextHidden} setHidden={setMotivationTextHidden}>
+            <FieldRow label="Motivační věta" hidden={motivationTextHidden} setHidden={setMotivationTextHidden}>
               <input
                 value={motivationText}
                 onChange={(e) => setMotivationText(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                placeholder="Napr. Každý den o krok blíž ??"
+                className="w-full rounded-xl bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-100"
+                placeholder="Např. Každý den o krok blíž"
               />
             </FieldRow>
 
@@ -1105,8 +1135,8 @@ export default function ProfilePersonalPage() {
                   max={250}
                   value={heightCm}
                   onChange={(e) => setHeightCm(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                  placeholder="Napr. 172"
+                  className="w-full rounded-xl bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-100"
+                  placeholder="Např. 172"
                 />
               </FieldRow>
 
@@ -1117,16 +1147,18 @@ export default function ProfilePersonalPage() {
                   max={300}
                   value={weightKg}
                   onChange={(e) => setWeightKg(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                  placeholder="Napr. 68"
+                  className="w-full rounded-xl bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-100"
+                  placeholder="Např. 68"
                 />
               </FieldRow>
             </div>
           </div>
         </section>
+        ) : null}
 
         {/* B) Zájmy */}
-        <section className="mt-8">
+        {activeTab === "interests" ? (
+        <section id="profil-zajmy" className="mt-8 scroll-mt-28">
           <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">Zájmy</h2>
 
           <div className="mt-3 grid gap-3">
@@ -1140,8 +1172,8 @@ export default function ProfilePersonalPage() {
                 value={aboutMe}
                 onChange={(e) => setAboutMe(e.target.value)}
                 rows={4}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                placeholder="Napiš neco o sobe…"
+                className="w-full rounded-xl bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-100"
+                placeholder="Napiš něco o sobě…"
               />
             </FieldRow>
 
@@ -1159,7 +1191,7 @@ export default function ProfilePersonalPage() {
 
             <SearchableChipSelect
               title="Zájmy (max 5)"
-              subtitle="Vyber z císelníku a prípadne pridej vlastní."
+              subtitle="Vyber ze seznamu a případně přidej vlastní."
               options={INTERESTS}
               selected={interests}
               setSelected={setInterests}
@@ -1190,7 +1222,7 @@ export default function ProfilePersonalPage() {
             </FieldRow>
 
             <SearchableChipSelect
-              title="V cem se chci zlepšit (max 5)"
+              title="V čem se chci zlepšit (max 5)"
               subtitle="Vyber pár oblastí – at to zustane jednoduché."
               options={IMPROVEMENT_AREAS}
               selected={improvementAreas}
@@ -1204,9 +1236,11 @@ export default function ProfilePersonalPage() {
             />
           </div>
         </section>
+        ) : null}
 
         {/* C) Životní styl */}
-        <section className="mt-8">
+        {activeTab === "lifestyle" ? (
+        <section id="profil-zivotni-styl" className="mt-8 scroll-mt-28">
           <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">Životní styl</h2>
 
           <div className="mt-3 grid gap-3">
@@ -1238,7 +1272,7 @@ export default function ProfilePersonalPage() {
             </FieldRow>
 
             <FieldRow
-              label="Kourení"
+              label="Kouření"
               hidden={smokingHidden}
               setHidden={setSmokingHidden}
               infoText={SENSITIVE_FIELD_INFO_TEXT}
@@ -1284,8 +1318,9 @@ export default function ProfilePersonalPage() {
             </FieldRow>
           </div>
         </section>
+        ) : null}
 
-        <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
+        <div className="sticky bottom-4 mt-8 flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-white/95 p-4 shadow-xl backdrop-blur">
           <label className="flex items-start gap-3 text-sm text-slate-700">
             <input
               type="checkbox"
@@ -1294,8 +1329,8 @@ export default function ProfilePersonalPage() {
               className="mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
             />
             <span className="italic">
-              Souhlasím s využitím techto údaju pro personalizaci a cílení reklamy. Více informací o zpracování
-              osobních údaju najdeš v sekci{" "}
+              Souhlasím s využitím těchto údajů pro personalizaci a cílení reklamy. Více informací o zpracování
+              osobních údajů najdeš v sekci{" "}
               <Link href="/privacy-terms" className="font-semibold text-emerald-700 underline underline-offset-2 hover:text-emerald-800">
                 Soukromí a podmínky používání služby AgeWinners
               </Link>

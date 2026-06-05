@@ -1,4 +1,4 @@
-/**
+﻿/**
  * components/profile/EditableField.tsx
  *
  * Purpose:
@@ -43,7 +43,7 @@ export default function EditableField({
   }, [value]);
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+    <div className="rounded-2xl bg-white p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-sm font-semibold text-slate-900">{label}</div>
@@ -83,7 +83,7 @@ export default function EditableField({
             type="button"
             onClick={onStartEdit}
             className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-            aria-label={`Upravit поле: ${label}`}
+            aria-label={`Upravit Ð¿Ð¾Ð»Ðµ: ${label}`}
             title="Upravit"
           >
             ✏️
@@ -93,3 +93,4 @@ export default function EditableField({
     </div>
   );
 }
+
