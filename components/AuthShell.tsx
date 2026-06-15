@@ -190,7 +190,12 @@ function isAuthEntryRoute(pathname: string) {
 }
 
 function isPublicStandaloneRoute(pathname: string) {
-  return isAuthEntryRoute(pathname) || pathname === "/forgot-password" || pathname === "/reset-password";
+  return (
+    isAuthEntryRoute(pathname) ||
+    pathname === "/auth/callback" ||
+    pathname === "/forgot-password" ||
+    pathname === "/reset-password"
+  );
 }
 
 function isProfileSidebarRoute(pathname: string | null | undefined) {

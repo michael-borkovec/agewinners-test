@@ -11,7 +11,7 @@
 import { supabase } from "@/lib/supabaseClient";
 
 const EMAIL_CONFIRM_REDIRECT =
-  process.env.NEXT_PUBLIC_EMAIL_CONFIRM_REDIRECT ?? "http://localhost:3000/profile/basic";
+  process.env.NEXT_PUBLIC_EMAIL_CONFIRM_REDIRECT ?? "http://localhost:3000/auth/callback";
 const PASSWORD_RESET_REDIRECT =
   process.env.NEXT_PUBLIC_PASSWORD_RESET_REDIRECT ?? "http://localhost:3000/reset-password";
 

@@ -3,7 +3,7 @@
   - Setup notes for Supabase signup confirmation email.
   - Explains where the email template is configured and how it relates to the app.
   - Related: lib/api/auth.ts, app/register/page.tsx, app/forgot-password/page.tsx
-  - Related templates: docs/SUPABASE_AUTH_EMAIL_TEMPLATE.html, docs/SUPABASE_PASSWORD_RESET_EMAIL_TEMPLATE.html
+  - Related templates: docs/SUPABASE_SIGNUP_EMAIL_TEMPLATE.html, docs/SUPABASE_PASSWORD_RESET_EMAIL_TEMPLATE.html
 -->
 
 # Supabase Auth Setup
@@ -14,7 +14,7 @@ Používá se:
 
 - registrace z `app/register/page.tsx`
 - redirect po potvrzení z `lib/api/auth.ts`
-- HTML šablona v `docs/SUPABASE_AUTH_EMAIL_TEMPLATE.html`
+- HTML šablona v `docs/SUPABASE_SIGNUP_EMAIL_TEMPLATE.html`
 
 ## Co nastavit v Supabase - potvrzení registrace
 
@@ -23,13 +23,13 @@ Používá se:
 3. Otevři template pro `Confirm signup`.
 4. Jako subject nastav:
 
-`Potvrďte registraci na AgeWinners`
+`Potvrďte registraci do AgeWinners`
 
-5. Do HTML obsahu vlož obsah souboru `docs/SUPABASE_AUTH_EMAIL_TEMPLATE.html`.
+5. Do HTML obsahu vlož obsah souboru `docs/SUPABASE_SIGNUP_EMAIL_TEMPLATE.html`.
 
 Preview text:
 
-`Potvrďte e-mail a dokončete svůj AgeWinners profil.`
+`Ještě jeden krok a váš účet bude připraven.`
 
 Plain-text fallback je v `docs/SUPABASE_AUTH_EMAIL_COPY.md`.
 
@@ -54,12 +54,26 @@ Plain-text fallback je v `docs/SUPABASE_AUTH_EMAIL_COPY.md`.
 
 Frontend při registraci posílá `emailRedirectTo`, takže po kliknutí na potvrzovací odkaz jde uživatel na:
 
-`http://localhost:3000/profile/basic`
+Lokálně:
+
+`http://localhost:3000/auth/callback`
+
+Na test prostředí:
+
+`https://test.agewinners.cz/auth/callback`
 
 To je aktuálně řízené přes:
 
 - `NEXT_PUBLIC_EMAIL_CONFIRM_REDIRECT`
 - fallback v `lib/api/auth.ts`
+
+Pro `test.agewinners.cz` musí být v deployment environment nastaveno:
+
+`NEXT_PUBLIC_EMAIL_CONFIRM_REDIRECT=https://test.agewinners.cz/auth/callback`
+
+V Supabase Auth URL Configuration musí být povolen redirect:
+
+`https://test.agewinners.cz/auth/callback`
 
 Frontend při obnově hesla posílá `redirectTo`, takže po kliknutí na resetovací odkaz jde uživatel na:
 
