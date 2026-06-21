@@ -46,12 +46,14 @@ import { createPostStory } from "@/lib/api/postStories";
 import { deleteMyPost, updateMyPostDetails } from "@/lib/api/posts";
 import type { AwDirectionKey } from "@/lib/awDirections";
 import { formatRelativeUiTimestamp } from "@/lib/utils/timeFormat";
+import { buildResponsiveImageSources } from "@/lib/image/responsiveImage";
 import type { UiPost } from "@/types/ui";
 
 type AnyPost = UiPost & Record<string, any>;
 type AnyImage = Record<string, any>;
 type ImageCommentsState = Record<number, CommentRow[]>;
 type ImageReactionState = Record<number, ImageReactionSummary>;
+type PhotoOrientation = "portrait" | "landscape" | "square";
 
 type ReactionModalState =
   | { open: false; imageId: null }
@@ -107,6 +109,8 @@ type PostCardProps = {
   borderlessCard?: boolean;
   hideTimestamps?: boolean;
   imageTileClassName?: string;
+  highlightGuessed?: boolean;
+  hideChallengeTags?: boolean;
 };
 
 function toNumber(value: unknown): number | null {
@@ -214,13 +218,21 @@ function buildLayoutRows<T>(items: T[], isPortrait: (item: T) => boolean): Layou
   return rows;
 }
 
-function thumbAspectClass(isPortrait: boolean, fullWidth: boolean) {
-  if (fullWidth) return isPortrait ? "aspect-[3/4]" : "aspect-[4/3]";
-  return isPortrait ? "aspect-[3/4]" : "aspect-[4/3]";
+function thumbAspectClass(orientation: PhotoOrientation, fullWidth: boolean) {
+  if (orientation === "square") return "aspect-square";
+  if (fullWidth) return orientation === "portrait" ? "aspect-[3/4]" : "aspect-[4/3]";
+  return orientation === "portrait" ? "aspect-[3/4]" : "aspect-[4/3]";
 }
 
-function thumbImageClass(isPortrait: boolean) {
-  return isPortrait ? "h-full w-full object-cover object-top" : "h-full w-full object-cover object-center";
+function thumbImageClass(orientation: PhotoOrientation) {
+  if (orientation === "square") return "h-full w-full object-contain object-center";
+  return orientation === "portrait" ? "h-full w-full object-cover object-top" : "h-full w-full object-cover object-center";
+}
+
+function getPhotoOrientation(width: number, height: number): PhotoOrientation {
+  const delta = Math.abs(width - height) / Math.max(width, height);
+  if (delta <= 0.04) return "square";
+  return height > width ? "portrait" : "landscape";
 }
 
 function computeAwScorePct(realAge: number | null, awAge: number | null): number | null {
@@ -326,6 +338,44 @@ function OwnerInfoBox(props: {
   );
 }
 
+function OwnerZoomFooter(props: {
+  realAge: number | null;
+  awAge: number | null;
+  ownerInfoMode: "default" | "aw_score";
+  takenAt: string | null | undefined;
+  hideTimestamp: boolean;
+  editDisabled: boolean;
+  deleteDisabled: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const showTimestamp = !props.hideTimestamp;
+
+  return (
+    <div className="mx-auto mt-3 w-[min(100%,54rem)] rounded-xl bg-white px-3 py-2.5 shadow-xl sm:px-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <OwnerInfoBox realAge={props.realAge} awAge={props.awAge} mode={props.ownerInfoMode} />
+          {showTimestamp ? (
+            <div className="rounded-lg bg-slate-50 px-2.5 py-1.5 text-[11px] font-medium text-slate-500">
+              {formatRelativeUiTimestamp(props.takenAt ?? null)}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="flex shrink-0 gap-2">
+          <AwButton type="button" variant="secondary" size="sm" onClick={props.onEdit} disabled={props.editDisabled} className="flex-1 no-underline sm:flex-none">
+            Editovat
+          </AwButton>
+          <AwButton type="button" variant="secondary" size="sm" onClick={props.onDelete} disabled={props.deleteDisabled} className="flex-1 no-underline sm:flex-none">
+            Smazat
+          </AwButton>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PostStoryBlock({ story }: { story: any }) {
   if (!story) return null;
   const images = Array.isArray(story.images) ? story.images : [];
@@ -402,7 +452,7 @@ function PhotoTile(props: {
   viewerGuessAge: number | null;
   isMine: boolean;
   isSuperUser: boolean;
-  isPortrait: boolean;
+  orientation: PhotoOrientation;
   fullWidth: boolean;
   menuOpen: boolean;
   isHiddenByViewer?: boolean;
@@ -425,11 +475,21 @@ function PhotoTile(props: {
   tileClassName?: string;
   preferMediumPreview?: boolean;
   bareImage?: boolean;
+  hideChallengeTags?: boolean;
 }) {
-  const { img, imageId, viewerGuessAge, isMine, isSuperUser, isPortrait, fullWidth, menuOpen, busyKey, ownerInfoMode, canGuessInline, onSubmitGuess } = props;
+  const { img, imageId, viewerGuessAge, isMine, isSuperUser, orientation, fullWidth, menuOpen, busyKey, ownerInfoMode, canGuessInline, onSubmitGuess } = props;
   const thumb = imagePreviewUrl(img, Boolean(props.preferMediumPreview));
-  const aspectClass = thumbAspectClass(isPortrait, fullWidth);
-  const imageClass = thumbImageClass(isPortrait);
+  const responsiveImage = buildResponsiveImageSources({
+    thumb: img?.public_url_thumb ?? img?.publicUrlThumb,
+    medium: img?.public_url_medium ?? img?.publicUrlMedium,
+    detail: img?.public_url ?? img?.publicUrl ?? img?.url,
+  });
+  const aspectClass = thumbAspectClass(orientation, fullWidth);
+  const imageClass = thumbImageClass(orientation);
+  const imageSizes =
+    fullWidth || props.bareImage
+      ? "(max-width: 640px) calc(100vw - 32px), 900px"
+      : "(max-width: 640px) calc(100vw - 32px), 440px";
   const widthClass = props.tileClassName ?? "w-full";
   const frameClass = props.bareImage
     ? "bg-transparent p-0"
@@ -457,7 +517,7 @@ function PhotoTile(props: {
           <p className="mb-3 text-sm text-slate-700">{String(img.comment)}</p>
         ) : null}
 
-        {thumb ? (
+        {responsiveImage.src || thumb ? (
           <button
             type="button"
             onClick={() => imageId && props.onOpenZoom(imageId)}
@@ -466,7 +526,9 @@ function PhotoTile(props: {
           >
             <div className={imageInnerClass}>
               <img
-                src={thumb}
+                src={responsiveImage.src || thumb}
+                srcSet={responsiveImage.srcSet}
+                sizes={responsiveImage.srcSet ? imageSizes : undefined}
                 alt={img?.comment ? String(img.comment) : "Fotka v postu"}
                 className={imageClass}
                 onLoad={(e) => imageId && props.onThumbLoad(imageId, e.currentTarget)}
@@ -477,7 +539,7 @@ function PhotoTile(props: {
           <div className="flex h-64 items-center justify-center rounded-xl bg-slate-100 text-sm text-slate-500">Bez náhledu</div>
         )}
 
-        {challengeTags.length > 0 ? (
+        {!props.hideChallengeTags && challengeTags.length > 0 ? (
           <div className="pointer-events-none absolute bottom-6 left-6 flex max-w-[calc(100%-3rem)] flex-wrap gap-2">
             {challengeTags.map((challenge: AnyImage) => (
               <Link
@@ -587,6 +649,8 @@ export function PostCard({
   borderlessCard = false,
   hideTimestamps = false,
   imageTileClassName,
+  highlightGuessed = false,
+  hideChallengeTags = false,
 }: PostCardProps) {
   const postId = toNumber(post?.id);
   const authorUserId = String(post?.authorUserId ?? "");
@@ -620,7 +684,7 @@ export function PostCard({
   const [reportCommentId, setReportCommentId] = useState<number | null>(null);
   const [commentMenuForId, setCommentMenuForId] = useState<number | null>(null);
   const [zoomImageId, setZoomImageId] = useState<number | null>(null);
-  const [isPortraitByImageId, setIsPortraitByImageId] = useState<Record<number, boolean>>({});
+  const [orientationByImageId, setOrientationByImageId] = useState<Record<number, PhotoOrientation>>({});
   const [guessUnlockedByImageId, setGuessUnlockedByImageId] = useState<Record<number, boolean>>({});
   const [localGuessedAgeByImageId, setLocalGuessedAgeByImageId] = useState<Record<number, number>>({});
   const [openCommentsByImageId, setOpenCommentsByImageId] = useState<Record<number, boolean>>({});
@@ -646,8 +710,8 @@ export function PostCard({
   const isHiddenByViewer = Boolean(post?.isHiddenByViewer);
 
   const layoutRows = useMemo(
-    () => buildLayoutRows(images, (img) => !!isPortraitByImageId[toNumber((img as AnyImage)?.id) ?? -1]),
-    [images, isPortraitByImageId]
+    () => buildLayoutRows(images, (img) => orientationByImageId[toNumber((img as AnyImage)?.id) ?? -1] === "portrait"),
+    [images, orientationByImageId]
   );
   const hasSingleImage = images.length === 1;
 
@@ -1059,8 +1123,8 @@ export function PostCard({
     const h = el.naturalHeight;
     if (!w || !h) return;
 
-    setIsPortraitByImageId((prev) => {
-      const nextVal = h > w;
+    setOrientationByImageId((prev) => {
+      const nextVal = getPhotoOrientation(w, h);
       if (prev[imageId] === nextVal) return prev;
       return { ...prev, [imageId]: nextVal };
     });
@@ -1633,45 +1697,27 @@ export function PostCard({
             <p className="mb-3 text-center text-sm text-white/90">{String(item.image.comment)}</p>
           ) : null
         }
-        renderFooter={(item) => (
-          <div className="mx-auto mt-3 max-w-3xl rounded-2xl bg-white p-3 shadow-xl">
-            {isMine ? (
-              <div className="space-y-3">
-                <OwnerInfoBox
-                  realAge={toNumber(item.image?.real_age_years)}
-                  awAge={toNumber(item.image?.aw_age_image)}
-                  mode={ownerInfoMode}
-                />
-                <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
-                  <AwButton
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => {
-                      setZoomImageId(null);
-                      void handleOpenEditImage(item.imageId);
-                    }}
-                    disabled={busyKey === `image-edit-${item.imageId}`}
-                    className="w-full no-underline sm:w-auto"
-                  >
-                    Editovat fotku
-                  </AwButton>
-                  <AwButton
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => {
-                      setZoomImageId(null);
-                      void handleDeleteImage(item.imageId);
-                    }}
-                    disabled={busyKey === `image-delete-${item.imageId}`}
-                    className="w-full no-underline sm:w-auto"
-                  >
-                    Smazat fotku
-                  </AwButton>
-                </div>
-              </div>
-            ) : onAgeGuess ? (
+        renderFooter={(item) =>
+          isMine ? (
+            <OwnerZoomFooter
+              realAge={toNumber(item.image?.real_age_years)}
+              awAge={toNumber(item.image?.aw_age_image)}
+              ownerInfoMode={ownerInfoMode}
+              takenAt={item.image?.taken_at ?? null}
+              hideTimestamp={!canSeeViewerMetadata || hideTimestamps}
+              editDisabled={busyKey === `image-edit-${item.imageId}`}
+              deleteDisabled={busyKey === `image-delete-${item.imageId}`}
+              onEdit={() => {
+                setZoomImageId(null);
+                void handleOpenEditImage(item.imageId);
+              }}
+              onDelete={() => {
+                setZoomImageId(null);
+                void handleDeleteImage(item.imageId);
+              }}
+            />
+          ) : onAgeGuess ? (
+            <div className="mx-auto mt-3 max-w-3xl rounded-xl bg-white p-3 shadow-xl">
               <div className="rounded-xl bg-slate-50 p-3">
                 <AgeGuessSlider
                   imageId={item.imageId}
@@ -1680,13 +1726,12 @@ export function PostCard({
                   onSubmit={handleAgeGuess}
                 />
               </div>
-            ) : null}
-
-            {canSeeViewerMetadata && !hideTimestamps ? (
-              <div className="mt-2 text-center text-[11px] text-slate-500">{formatRelativeUiTimestamp(item.image?.taken_at ?? null)}</div>
-            ) : null}
-          </div>
-        )}
+              {canSeeViewerMetadata && !hideTimestamps ? (
+                <div className="mt-2 text-center text-[11px] text-slate-500">{formatRelativeUiTimestamp(item.image?.taken_at ?? null)}</div>
+              ) : null}
+            </div>
+          ) : null
+        }
       />
 
       {editPostOpen ? (
@@ -1805,8 +1850,10 @@ export function PostCard({
 
       <article
         className={
-          framelessImages || borderlessCard
-            ? "rounded-2xl bg-white p-3 sm:p-4"
+          highlightGuessed
+            ? "rounded-2xl bg-gradient-to-br from-[#e8fbe8] via-white to-white p-3 shadow-[0_12px_30px_rgba(50,205,50,0.10)] transition-colors duration-300 sm:p-4"
+            : framelessImages || borderlessCard
+              ? "rounded-2xl bg-white p-3 sm:p-4"
             : "rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4"
         }
       >
@@ -1897,7 +1944,7 @@ export function PostCard({
                 viewerGuessAge={getViewerGuessAge((row.item as AnyImage) ?? null)}
                 isMine={isMine}
                 isSuperUser={isSuperUser}
-                isPortrait={!!isPortraitByImageId[toNumber((row.item as AnyImage)?.id) ?? -1]}
+                orientation={orientationByImageId[toNumber((row.item as AnyImage)?.id) ?? -1] ?? "landscape"}
                 fullWidth={row.fullWidth}
                 menuOpen={imageMenuForId === toNumber((row.item as AnyImage)?.id)}
                 isHiddenByViewer={Boolean((row.item as AnyImage)?.isHiddenByViewer ?? post?.isHiddenByViewer)}
@@ -1926,6 +1973,7 @@ export function PostCard({
                 tileClassName={imageTileClassName}
                 preferMediumPreview={hasSingleImage}
                 bareImage={hasSingleImage}
+                hideChallengeTags={hideChallengeTags}
               />
             ) : (
               <div key={`pair-${postId}-${rowIndex}`} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -1938,7 +1986,7 @@ export function PostCard({
                       viewerGuessAge={getViewerGuessAge((img as AnyImage) ?? null)}
                       isMine={isMine}
                       isSuperUser={isSuperUser}
-                      isPortrait={!!isPortraitByImageId[toNumber((img as AnyImage)?.id) ?? -1]}
+                      orientation={orientationByImageId[toNumber((img as AnyImage)?.id) ?? -1] ?? "landscape"}
                       fullWidth={false}
                       menuOpen={imageMenuForId === toNumber((img as AnyImage)?.id)}
                       isHiddenByViewer={Boolean((img as AnyImage)?.isHiddenByViewer ?? post?.isHiddenByViewer)}
@@ -1967,6 +2015,7 @@ export function PostCard({
                       tileClassName={imageTileClassName}
                       preferMediumPreview={false}
                       bareImage={false}
+                      hideChallengeTags={hideChallengeTags}
                     />
                   ) : (
                     <div key={`empty-${postId}-${rowIndex}-${colIndex}`} className="hidden sm:block" aria-hidden="true" />

@@ -674,10 +674,14 @@ export default function AuthShell({ children }: AuthShellProps) {
 
     const { data: sub } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession ?? null);
-      router.refresh();
 
+      // Auth events are broadcast across tabs. TOKEN_REFRESHED must not reload every open page.
       if (event === "SIGNED_IN" && newSession) {
         markActive();
+        setTimeout(() => refreshProfileForSession(newSession), 0);
+      }
+
+      if (event === "USER_UPDATED" && newSession) {
         setTimeout(() => refreshProfileForSession(newSession), 0);
       }
 

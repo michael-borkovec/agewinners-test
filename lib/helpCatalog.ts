@@ -34,18 +34,46 @@ const statsOverviewIntro =
 
 export const helpCatalog: HelpEntry[] = [
   {
+    key: "profile-card",
+    sectionId: "profile-card",
+    sectionTitle: "Profilová karta",
+    title: "Profilová karta",
+    intro:
+      "Profilová karta vytváří první dojem z tvého účtu. Fotka má jasně ukazovat tvůj obličej a bio má krátce vystihnout, kdo jsi.",
+    cards: [
+      {
+        title: "Vhodný portrét",
+        text: "Použij přirozenou fotografii podobnou občanské nebo profesionální profilové fotce, ideálně od pasu či hrudi výše. Obličej musí být dobře rozpoznatelný a nezakrytý.",
+      },
+      {
+        title: "Bez uříznuté hlavy",
+        text: "Celá hlava včetně vlasů musí zůstat v záběru. Nech kolem ní dost místa, aby kruhový ořez v navigaci a profilu neodřízl čelo, bradu ani vlasy.",
+      },
+      {
+        title: "Čemu se vyhnout",
+        text: "Nevybírej vzdálenou postavu, záběr zezadu, skupinovou fotografii ani snímek, na kterém obličej zakrývají vlasy, brýle, stín nebo jiné předměty.",
+      },
+      {
+        title: "Bio a zájmy",
+        text: "Bio nech krátké a výstižné. Podrobnější zájmy, aktivity a životní styl doplň v části O mně, aby tě ostatní mohli lépe poznat a najít.",
+      },
+    ],
+    tip: "Před uložením se podívej na malý kruhový náhled. Pokud v něm obličej není okamžitě jasný, zvol bližší a lépe komponovaný portrét.",
+  },
+  {
     key: "feed",
     sectionId: "feed",
     sectionTitle: "Feed",
     title: "Feed",
     intro:
-      "Feed je živý proud fotek ostatních uživatelů, kde svými tipy pomáháš vytvářet jejich AW výsledek. Je určený hlavně k objevování a tipování: prohlížíš fotky, dáváš odhad věku a postupně tím zpřesňuješ obraz toho, jak lidé na AgeWinners působí. Když chceš výběr lépe přizpůsobit tomu, co tě zajímá, použij filtr; když chceš nový mix fotek, pomůže refresh.",
+      "Feed pracuje v přehledných sadách po 8 fotkách ostatních uživatelů. U každé fotky tipuješ věk a ukazatel pod hlavičkou ti průběžně říká, kolik fotek z aktuální osmičky už máš hotových. Po osmém úspěšném tipu AW automaticky načte novou sadu.",
     cards: [
-      { title: "Co se zobrazuje", text: "Vidíš fotky ostatních, které můžeš tipovat. Vlastní fotky ani běžně už tipované fotky se ti tu nezobrazují." },
-      { title: "Filtr a refresh", text: "Ve filtru vybíráš, co chceš právě vidět, a můžeš se k němu kdykoliv vrátit. Výběr upravíš podle tagů a skrytých fotek; refresh pak načte nový výběr podle aktuálního nastavení." },
+      { title: "Aktuální sada", text: "Feed načte 8 fotek, které můžeš tipovat. Vlastní fotky ani běžně už tipované fotky se ti nezobrazují." },
+      { title: "Průběh 0 až 8", text: "Osm segmentů a údaj „x z 8“ ukazují postup v aktuální sadě. Po odtipování všech 8 fotek se automaticky načte další osmička." },
+      { title: "Filtr a ruční refresh", text: "Filtr upraví výběr podle tagů a skrytých fotek. Ikonou refresh můžeš kdykoliv ručně načíst novou sadu podle aktuálního nastavení, i když předchozí osmičku nedokončíš." },
       { title: "Proč tipovat", text: "Každý tip pomáhá zpřesňovat AW výsledek ostatních a dává prostor i novým nebo méně tipovaným fotkám." },
     ],
-    tip: "Když chceš pestřejší výběr, pracuj s filtrem a průběžně obnovuj nabídku.",
+    tip: "Dokonči všech 8 fotek v sadě a další se načtou automaticky. Pro okamžitou změnu výběru použij ruční refresh.",
   },
   {
     key: "my-posts",
@@ -60,6 +88,34 @@ export const helpCatalog: HelpEntry[] = [
       { title: "Proč popisovat fotky", text: "Dobře popsané fotky se lépe filtrují, snáz se používají ve výzvách a později dávají přehlednější statistiky." },
     ],
     tip: "Když si dáš záležet na tagách hned při nahrání, později se ti bude celý profil ovládat lehčeji.",
+  },
+  {
+    key: "photo-tags",
+    sectionId: "my-posts",
+    sectionTitle: "Moje posty",
+    groupTitle: "Nahrávání fotek",
+    title: "Tagy fotek",
+    intro:
+      "Tagy pomáhají fotku zařadit do správného kontextu pro filtrování, výzvy a pozdější statistiky. Nejde o hodnocení člověka, ale o praktický popis toho, jaký typ fotky nahráváš.",
+    cards: [
+      {
+        title: "Výchozí tagy",
+        text: "Použij je jako hlavní třídění fotky. Když není vidět obličej, vyber Postava bez obličeje i tehdy, když jde zároveň o sport, plavky nebo společenské oblečení.",
+      },
+      {
+        title: "AW směr",
+        text: "Popisuje kontext dojmu z fotky: pohyb, styl, výživa, regenerace nebo péče. AW sleduje dojem komunity, ne zdravotní účinek ani biologický věk.",
+      },
+      {
+        title: "Moje výzvy",
+        text: "Vyber jen výzvu, do které fotka opravdu patří. Díky tomu se později správně započítá do porovnání a sdílené karty výzvy.",
+      },
+      {
+        title: "Vlastní tagy",
+        text: "Piš je krátce a jednotně. Lepší je jeden opakovaně používaný tag než mnoho podobných variant, které se budou hůř filtrovat.",
+      },
+    ],
+    tip: "Netaguj každou drobnost. Méně dobrých tagů dá později přehlednější filtr i statistiky.",
   },
   {
     key: "my-tips",

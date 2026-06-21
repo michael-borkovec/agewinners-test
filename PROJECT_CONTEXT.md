@@ -122,6 +122,10 @@ Auth:
 
 \- Content reveal depends on user level
 
+\- AI-generated test photos should usually use natural rectangular aspect ratios (portrait or landscape). Avoid square photos unless the square format is intentional; square photos must be displayed uncropped in AW.
+
+\- Every AI test user should have at least one natural profile-suitable portrait: face-focused, framed from chest or waist upward, with the complete head visible and enough space for a circular avatar crop.
+
 
 
 \---

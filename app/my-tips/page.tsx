@@ -48,6 +48,7 @@ import {
 } from "@/lib/api/imageReactions";
 import { toggleStoryReaction } from "@/lib/api/postStories";
 import { buildCommentTree, type CommentNode } from "@/lib/commentsTree";
+import { buildResponsiveImageSources } from "@/lib/image/responsiveImage";
 import { formatAbsoluteUiTimestamp, formatRelativeUiTimestamp } from "@/lib/utils/timeFormat";
 
 function formatCommentDateCZ(iso: string | null | undefined) {
@@ -621,7 +622,6 @@ function TipPhotoMenuAction(props: { onClick: () => void | Promise<void>; disabl
 function TipPhotoCard({
   imageId,
   postId,
-  thumb,
   onZoom,
   onMeasure,
   isPortrait,
@@ -660,7 +660,6 @@ function TipPhotoCard({
 }: {
   imageId: number;
   postId: number;
-  thumb: string;
   onZoom: (photo: MyTipPhotoRow, revealed: boolean, remainingMs: number) => void;
   onMeasure: (imageId: number, el: HTMLImageElement | null) => void;
   isPortrait: boolean;
@@ -699,6 +698,14 @@ function TipPhotoCard({
 }) {
   const aspectClass = thumbAspectClass(isPortrait, fullWidth);
   const imageClass = thumbImageClass(isPortrait);
+  const responsiveImage = buildResponsiveImageSources({
+    thumb: photo.imageThumbUrl,
+    medium: photo.imageMediumUrl,
+    detail: photo.imagePublicUrl,
+  });
+  const imageSizes = fullWidth
+    ? "(max-width: 640px) calc(100vw - 32px), 900px"
+    : "(max-width: 640px) calc(100vw - 32px), 440px";
   const widthClass = fullWidth ? "mx-auto w-full max-w-[65%]" : "w-full";
   const frameClass = frameless ? `${widthClass} bg-transparent p-0` : `${widthClass} rounded-2xl bg-slate-50 p-3`;
   const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
@@ -780,7 +787,9 @@ function TipPhotoCard({
           <div className={`w-full overflow-hidden rounded-xl bg-transparent ${aspectClass}`}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={thumb}
+              src={responsiveImage.src}
+              srcSet={responsiveImage.srcSet}
+              sizes={responsiveImage.srcSet ? imageSizes : undefined}
               alt={`Fotka #${imageId}`}
               className={imageClass}
               onLoad={(e) => onMeasure(imageId, e.currentTarget)}
@@ -1660,11 +1669,6 @@ export default function MyTipsPage() {
                         <TipPhotoCard
                           imageId={Number((row.item as any).imageId)}
                           postId={g.postId}
-                          thumb={
-                            hasSinglePhoto
-                              ? (row.item as any).imageMediumUrl ?? (row.item as any).imageThumbUrl ?? (row.item as any).imagePublicUrl
-                              : (row.item as any).imageThumbUrl ?? (row.item as any).imageMediumUrl ?? (row.item as any).imagePublicUrl
-                          }
                           onZoom={(photo, revealed, remainingMs) => setZoom({ open: true, photo, photos: g.photos, revealed, remainingMs })}
                           onMeasure={onThumbLoad}
                           isPortrait={!!isPortraitByImageId[Number((row.item as any).imageId)]}
@@ -1716,7 +1720,6 @@ export default function MyTipsPage() {
                               key={String((photo as any).imageId)}
                               imageId={photoImageId}
                               postId={g.postId}
-                              thumb={(photo as any).imageThumbUrl ?? (photo as any).imageMediumUrl ?? (photo as any).imagePublicUrl}
                               onZoom={(photoRow, revealedFlag, remainingMsValue) =>
                                 setZoom({ open: true, photo: photoRow, photos: g.photos, revealed: revealedFlag, remainingMs: remainingMsValue })
                               }

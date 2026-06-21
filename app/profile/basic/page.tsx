@@ -259,7 +259,7 @@ export default function BasicProfilePage() {
     <div className="mx-auto max-w-4xl space-y-5 p-6">
       <ProfileHero
         title="Profilová karta"
-        description="Tady ladíš první dojem: fotku, jméno a krátký text, který uvidí ostatní v profilu i v navigaci."
+        description="Tady ladíš první dojem: fotku, jméno a krátký text, který uvidí ostatní v profilu i v navigaci. Profilová fotka má být přirozený portrét zaměřený na dobře rozpoznatelný, nezakrytý obličej. Použij záběr podobný občanské nebo profesionální profilové fotografii, ideálně od pasu či hrudi výše. Celá hlava včetně vlasů musí zůstat v záběru a kolem ní má být dost místa pro kruhový ořez."
         actions={
           isSuperUser ? (
             <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">SuperUser</span>
@@ -269,7 +269,7 @@ export default function BasicProfilePage() {
 
       <ProfileSectionCard
         title="Základní údaje"
-        description="Veřejnou část nech krátkou a čitelnou. Detailnější informace patří do sekce O mně. Datum narození je jen pro informaci a běžný uživatel ho nemůže měnit, protože je navázané na výpočty skutečného věku, AW věku, historické statistiky a vyhodnocení fotek v čase. Kdyby se datum měnilo volně, starší výsledky by mohly přestat dávat smysl."
+        description="Veřejnou část nech krátkou a čitelnou. Profilová fotka má jasně ukazovat obličej, celou hlavu a horní část postavy; vyhni se vzdáleným záběrům, zakrytému obličeji a fotografiím s uříznutou hlavou. Detailnější informace patří do sekce O mně. Datum narození je jen pro informaci a běžný uživatel ho nemůže měnit, protože je navázané na výpočty skutečného věku, AW věku, historické statistiky a vyhodnocení fotek v čase. Kdyby se datum měnilo volně, starší výsledky by mohly přestat dávat smysl."
       >
         <div className="flex items-center gap-4">
           <div ref={avatarMenuRef} className="relative">

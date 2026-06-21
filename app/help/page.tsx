@@ -23,6 +23,7 @@ import { getHelpEntriesForSection, getHelpEntry } from "@/lib/helpCatalog";
 
 const quickLinks = [
   { href: "#start", label: "Začít" },
+  { href: "#profile-card", label: "Profilová karta" },
   { href: "#feed", label: "Feed" },
   { href: "#my-posts", label: "Moje posty" },
   { href: "#my-tips", label: "Moje tipy" },
@@ -64,13 +65,24 @@ const startSteps = [
 
 const helpSections = [
   {
+    id: "profile-card",
+    title: "Profilová karta",
+    intro:
+      "Profilová karta vytváří první dojem z tvého účtu. Profilová fotka má být přirozený portrét se snadno rozpoznatelným obličejem, celou hlavou v záběru a dostatkem místa pro kruhový ořez.",
+    paragraphs: [
+      "Nejlépe funguje fotografie podobná občanské nebo profesionální profilové fotografii, pořízená od pasu či hrudi výše. Obličej má být nezakrytý, dobře osvětlený a hlavním prvkem snímku.",
+      "Nepoužívej vzdálenou celou postavu, fotografii zezadu, zakrytý obličej ani výřez s uříznutou hlavou nebo vlasy. Důležité části obličeje musí zůstat viditelné i v malém kruhovém náhledu.",
+      "Bio nech krátké a výstižné. Podrobnější zájmy, aktivity a životní styl můžeš doplnit v části O mně.",
+    ],
+  },
+  {
     id: "feed",
     title: "Feed",
     intro:
-      "Feed je živý proud fotek ostatních uživatelů, kde svými tipy pomáháš vytvářet jejich AW výsledek. Je určený hlavně k objevování a tipování: prohlížíš fotky, dáváš odhad věku a postupně tím zpřesňuješ obraz toho, jak lidé na AgeWinners působí. Když chceš výběr lépe přizpůsobit tomu, co tě zajímá, použij filtr; když chceš nový mix fotek, pomůže refresh.",
+      "Feed pracuje v sadách po 8 fotkách ostatních uživatelů. Ukazatel průběhu ti říká, kolik fotek z aktuální osmičky už máš odtipováno; po osmém úspěšném tipu se automaticky načte další sada. Novou osmičku můžeš kdykoliv vyvolat také ručním refreshem.",
     paragraphs: [
-      "Feed zobrazuje fotky ostatních, které můžeš tipovat. Tvoje vlastní fotky ani fotky, které už jsi běžně tipoval, se ti tu nezobrazují.",
-      "Filtr upraví výběr podle tagů a skrytých fotek. Refresh načte nový výběr podle aktuálního nastavení.",
+      "Feed zobrazuje 8 fotek ostatních, které můžeš tipovat. Tvoje vlastní fotky ani fotky, které už jsi běžně tipoval, se ti tu nezobrazují.",
+      "Po odtipování všech 8 fotek se automaticky načte nová sada. Filtr upraví výběr podle tagů a skrytých fotek; refresh načte novou sadu ručně podle aktuálního nastavení.",
       "Každý tip pomáhá zpřesňovat AW výsledek ostatních. Výběr se průběžně mění, aby se dostalo i na nové nebo méně tipované fotky.",
     ],
   },

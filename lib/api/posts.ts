@@ -666,10 +666,12 @@ export async function getFeedPosts(params: {
   offset?: number;
   excludeFullyGuessed?: boolean;
   hiddenMode?: "exclude" | "include" | "only";
+  excludeImageIds?: number[];
 }) {
-  const { currentUserId, isPrivilegedViewer: providedIsPrivilegedViewer, categories = [], limit = 30, offset = 0, excludeFullyGuessed = true, hiddenMode = "exclude" } = params;
+  const { currentUserId, isPrivilegedViewer: providedIsPrivilegedViewer, categories = [], limit = 30, offset = 0, excludeFullyGuessed = true, hiddenMode = "exclude", excludeImageIds = [] } = params;
 
   if (!currentUserId) throw new Error("getFeedPosts: missing currentUserId");
+  const excludedImageIdSet = new Set(excludeImageIds.map(toInt).filter((id) => id > 0));
 
   const gamifiedBatch = await loadGamifiedFeedImageBatch({
     categories,
@@ -761,6 +763,7 @@ export async function getFeedPosts(params: {
     return images.flatMap((img: any) => {
       const imageId = toInt(img?.id);
       if (!imageId) return [];
+      if (excludedImageIdSet.has(imageId)) return [];
       const imageTags = normalizeImageTags([...(Array.isArray(img?.tags) ? img.tags : []), img?.photo_category]);
       if (want.size > 0 && !imageTags.some((tag) => want.has(tag))) return [];
 

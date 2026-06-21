@@ -170,9 +170,18 @@ export async function createAwChallenge(input: CreateAwChallengeInput): Promise<
 }
 
 export async function listMyAwChallenges(): Promise<AwChallenge[]> {
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError) throw new Error(authError.message);
+  if (!user?.id) throw new Error("Uživatel není přihlášen.");
+
   const { data, error } = await supabase
     .from("aw_challenges")
     .select("*")
+    .eq("owner_user_id", user.id)
     .order("created_at", { ascending: false });
 
   if (error) throw new Error(error.message);

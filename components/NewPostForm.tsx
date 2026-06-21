@@ -19,6 +19,7 @@ import AwButton from "@/components/AwButton";
 import CloseButton from "@/components/CloseButton";
 import { awAlert } from "@/components/AwDialog";
 import EmojiTextarea from "@/components/EmojiTextarea";
+import HelpIconButton from "@/components/HelpIconButton";
 import ImageBlurEditor, { type BlurEllipse } from "@/components/ImageBlurEditor";
 import { uploadAndCreateImage } from "@/lib/api/images";
 import { createPostWithImages, normalizeImageTag, PHOTO_TAG_OPTIONS, type PhotoTag } from "@/lib/api/posts";
@@ -208,6 +209,18 @@ function formatFallbackTagLabel(tag: string) {
     .replace(/\s+/g, " ")
     .trim()
     .replace(/^\w/, (char) => char.toUpperCase());
+}
+
+function PhotoTagHelp() {
+  return (
+    <HelpIconButton
+      helpText="Tagy pomáhají fotku zařadit do správného kontextu pro filtrování, výzvy a pozdější statistiky."
+      helpKey="photo-tags"
+      modalTitle="Nápověda - tagy fotek"
+      className="shrink-0 p-0.5"
+      iconClassName="h-4 w-4"
+    />
+  );
 }
 
 function TagSelectionModal({
@@ -1260,7 +1273,10 @@ export function NewPostForm({ onCreated }: { onCreated?: () => void }) {
                       </div>
 
                       <div>
-                        <label className="block text-xs text-slate-600">Tagy</label>
+                        <div className="flex items-center gap-2">
+                          <label className="block text-xs text-slate-600">Tagy</label>
+                          <PhotoTagHelp />
+                        </div>
                         <div className="mt-1 flex flex-wrap gap-2">
                           <AwButton
                             type="button"

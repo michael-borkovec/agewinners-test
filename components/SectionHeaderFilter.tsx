@@ -94,6 +94,8 @@ export function SectionHeaderFilter(props: {
   refreshActiveIconPath?: string;
   refreshActiveDurationMs?: number;
   refreshAnimationStorageKey?: string;
+  statusText?: string;
+  headerTooltip?: string;
 }) {
   const {
     title,
@@ -132,6 +134,8 @@ export function SectionHeaderFilter(props: {
     refreshActiveIconPath,
     refreshActiveDurationMs = 3000,
     refreshAnimationStorageKey,
+    statusText,
+    headerTooltip,
   } = props;
 
   const [open, setOpen] = useState(false);
@@ -276,8 +280,14 @@ export function SectionHeaderFilter(props: {
 
   return (
     <>
-      <div className="fixed left-[132px] top-[68px] z-[60] sm:hidden">
+      <div className="fixed left-[132px] top-[68px] z-[60] sm:hidden" title={headerTooltip}>
         <div className="flex items-center gap-2 rounded-sm bg-white/80 px-1 py-0.5">
+          {statusText ? (
+            <span className="whitespace-nowrap text-[0.65rem] font-bold tabular-nums text-emerald-800" role="status" aria-live="polite">
+              {statusText}
+            </span>
+          ) : null}
+
           {helpText ? (
             <HelpIconButton
               helpText={helpText}
@@ -331,7 +341,10 @@ export function SectionHeaderFilter(props: {
       </div>
 
       <div className="hidden sticky z-40 sm:block" style={{ top: "var(--aw-topbar-h, 0px)" }}>
-        <div className="mx-4 mb-4 flex items-center justify-between gap-3 rounded-2xl bg-gradient-to-br from-[#e8fbe8] via-white to-white p-4 shadow-[0_12px_30px_rgba(50,205,50,0.10)]">
+        <div
+          className="mx-4 mb-4 flex items-center justify-between gap-3 rounded-2xl bg-gradient-to-br from-[#e8fbe8] via-white to-white p-4 shadow-[0_12px_30px_rgba(50,205,50,0.10)]"
+          title={headerTooltip}
+        >
           <div className="min-w-0 hidden sm:block">
             <div className="flex items-center gap-3">
               {iconPath ? (
@@ -346,6 +359,12 @@ export function SectionHeaderFilter(props: {
 
           <div className="flex min-w-0 items-center justify-end gap-2 sm:flex-1">
             <div className="min-w-0 flex-1 truncate text-right text-sm text-slate-500 hidden sm:block">{summary}</div>
+
+            {statusText ? (
+              <span className="whitespace-nowrap text-sm font-bold tabular-nums text-emerald-800" role="status" aria-live="polite">
+                {statusText}
+              </span>
+            ) : null}
 
             {helpText ? (
               <HelpIconButton

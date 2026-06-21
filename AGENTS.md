@@ -401,6 +401,40 @@ Each file should start with a short header comment in this format:
 &#x20;  - příklad bez nastavení a filtru: `?` → `refresh`
 
 
+\## AI-Generated Photo Aspect Ratio Rules
+
+\- Generate test-user photos as natural rectangular photographs by default, never as squares by default.
+
+\- Prefer these aspect ratios:
+
+&#x20;  - portrait: `4:5`, `3:4`, or `2:3`
+
+&#x20;  - landscape: `4:3`, `3:2`, or `16:9` when the scene naturally calls for a wide frame
+
+\- Choose portrait or landscape according to the scene, pose, period, and intended photo category.
+
+\- Use a square (`1:1`) image only when the user explicitly requests it or when a clearly intentional source format requires it.
+
+\- Do not create square contact-sheet cells and then use those cells as final user photos. Final exported photos must preserve the intended rectangular aspect ratio.
+
+\- Existing square photos must remain supported by AW and displayed completely without cropping.
+
+
+\## Profile Photo Rules
+
+\- A profile photo must be a face-focused portrait, similar to an ID photo or a natural professional social-profile photo.
+
+\- Prefer a portrait framed from the waist or chest upward, with the face centered and clearly recognizable.
+
+\- Keep the entire head, hair, chin, and both eyes visible, with enough space around the head for a circular avatar crop.
+
+\- Do not use a distant full-body photo, rear view, group photo, covered face, extreme close-up, or a crop that cuts off the head or hair.
+
+\- When creating photos for an AI test user, always create or preserve at least one profile-suitable portrait that follows these rules.
+
+\- Profile photos should remain natural and identity-consistent with the user's other generated photos.
+
+
 \## Text Encoding Rules
 
 \- Při každé tvorbě nebo úpravě textů vždy zachovat správné UTF-8 kódování.

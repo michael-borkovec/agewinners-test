@@ -28,6 +28,7 @@ import {
 } from "@/lib/api/albums";
 import { getMyStatsSafe, type CategoryFilter, type MyStats } from "@/lib/api/stats";
 import { formatRelativeUiTimestamp } from "@/lib/utils/timeFormat";
+import { buildResponsiveImageSources } from "@/lib/image/responsiveImage";
 import type { UiPost } from "@/types/ui";
 
 type AlbumPostRel = {
@@ -50,9 +51,12 @@ type AlbumRow = {
 
 type AlbumImage = {
   id?: number | null;
+  public_url_medium?: string | null;
   public_url_thumb?: string | null;
   public_url?: string | null;
   publicUrl?: string | null;
+  publicUrlMedium?: string | null;
+  publicUrlThumb?: string | null;
   taken_at?: string | null;
   photo_category?: string | null;
   include_in_global_aw?: boolean | null;
@@ -80,6 +84,8 @@ type ChallengePhotoRow = {
   key: string;
   imageId: number;
   thumbUrl: string | null;
+  mediumUrl: string | null;
+  detailUrl: string | null;
   takenAt: string | null;
   photoCategory: string | null;
   includeInGlobalAw: boolean;
@@ -208,6 +214,12 @@ function toChangePostCardPost(post: AlbumPost, userId: string): UiPost {
     out.push({
       id,
       url,
+      public_url: image.public_url ?? null,
+      public_url_medium: image.public_url_medium ?? null,
+      public_url_thumb: image.public_url_thumb ?? null,
+      publicUrl: image.publicUrl ?? image.public_url ?? null,
+      publicUrlMedium: image.publicUrlMedium ?? image.public_url_medium ?? null,
+      publicUrlThumb: image.publicUrlThumb ?? image.public_url_thumb ?? null,
       comment: image.comment ?? null,
       real_age_years: image.real_age_years ?? null,
       aw_age_image: image.aw_age_image ?? null,
@@ -606,6 +618,10 @@ export default function MyAlbumsPage() {
           imageId: Number(image.id ?? 0),
           thumbUrl:
             String(image.public_url_thumb ?? image.public_url ?? image.publicUrl ?? "") || null,
+          mediumUrl:
+            String(image.public_url_medium ?? image.publicUrlMedium ?? "") || null,
+          detailUrl:
+            String(image.public_url ?? image.publicUrl ?? "") || null,
           takenAt: typeof image.taken_at === "string" ? image.taken_at : null,
           photoCategory: typeof image.photo_category === "string" ? image.photo_category : null,
           includeInGlobalAw: Boolean(image.include_in_global_aw),
@@ -1217,12 +1233,27 @@ export default function MyAlbumsPage() {
                 {filteredChallengePhotos.map((photo) => {
                   const awReference = photo.awAgeImage ?? photo.avgGuessedAge;
                   const delta = awReference !== null && photo.realAgeYears !== null ? awReference - photo.realAgeYears : null;
+                  const responsiveImage = buildResponsiveImageSources({
+                    thumb: photo.thumbUrl,
+                    medium: photo.mediumUrl,
+                    detail: photo.detailUrl,
+                  });
 
                   return (
                     <article key={photo.key} className="overflow-hidden rounded-2xl bg-white">
                       <div className="aspect-[4/3] bg-slate-100">
-                        {photo.thumbUrl ? (
-                          <img src={photo.thumbUrl} alt="" className="h-full w-full object-cover" />
+                        {responsiveImage.src ? (
+                          <img
+                            src={responsiveImage.src}
+                            srcSet={responsiveImage.srcSet}
+                            sizes={
+                              responsiveImage.srcSet
+                                ? "(max-width: 767px) calc(100vw - 32px), (max-width: 1279px) calc((100vw - 64px) / 2), 360px"
+                                : undefined
+                            }
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
                         ) : (
                           <div className="flex h-full items-center justify-center text-sm text-slate-500">Bez náhledu</div>
                         )}

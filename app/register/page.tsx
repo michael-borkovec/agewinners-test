@@ -27,6 +27,26 @@ function calculateAge(dateOfBirth: string): number {
   return age;
 }
 
+function parseCzechDateToIso(value: string): string | null {
+  const match = value.trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (!match) return null;
+
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+  const year = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
 function daysUntil16(dateOfBirth: string): number {
   const dob = new Date(dateOfBirth);
   const sixteen = new Date(dob);
@@ -86,14 +106,20 @@ export default function RegisterPage() {
       return;
     }
 
-    if (!dateOfBirth) {
+    const normalizedDateOfBirth = parseCzechDateToIso(dateOfBirth);
+    if (!dateOfBirth.trim()) {
       setError("Prosím zadej datum narození.");
       return;
     }
 
-    const age = calculateAge(dateOfBirth);
+    if (!normalizedDateOfBirth) {
+      setError("Datum narození zadej ve formátu dd.mm.rrrr, například 01.05.1969.");
+      return;
+    }
+
+    const age = calculateAge(normalizedDateOfBirth);
     if (age < 16) {
-      const days = daysUntil16(dateOfBirth);
+      const days = daysUntil16(normalizedDateOfBirth);
       setError(`Age Winners je určen pouze pro starší 16 let, vrať se za ${days} dnů prosím.`);
       return;
     }
@@ -101,7 +127,7 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      await signUpWithEmail({ email, password, dateOfBirth, referralSlug: referralSlug || null });
+      await signUpWithEmail({ email, password, dateOfBirth: normalizedDateOfBirth, referralSlug: referralSlug || null });
       setRegistered(true);
     } catch (e: unknown) {
       console.error(e);
@@ -197,10 +223,12 @@ export default function RegisterPage() {
               <label className="block text-sm font-medium text-white/90">
                 Datum narození
                 <input
-                  className="mt-2 w-full rounded-lg border border-white/20 bg-white/78 px-4 py-3 text-slate-950 outline-none transition focus:border-[#32CD32] focus:bg-white focus:ring-2 focus:ring-[#32CD32]/40"
+                  className="mt-2 w-full rounded-lg border border-white/20 bg-white/78 px-4 py-3 text-slate-950 outline-none transition placeholder:text-slate-500 focus:border-[#32CD32] focus:bg-white focus:ring-2 focus:ring-[#32CD32]/40"
                   value={dateOfBirth}
                   onChange={(e) => setDateOfBirth(e.target.value)}
-                  type="date"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="dd.mm.rrrr"
                   autoComplete="bday"
                 />
               </label>

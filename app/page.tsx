@@ -4,8 +4,8 @@
  * Purpose:
  * - Feed page
  * - Sticky header with modal filter + refresh icon
- * - Feed now shows individual photos from posts in random order
- * - Successful guesses remove photos locally after a short delay
+ * - Show individual photos in batches of eight
+ * - Load the next batch automatically after eight successful guesses
  */
 
 "use client";
@@ -24,8 +24,7 @@ const FEED_HIDDEN_MODE_OPTIONS: FilterOption[] = [
   { key: "include", label: "Zobrazit vše (i skryté fotky)" },
   { key: "only", label: "Zobrazit pouze skryté fotky" },
 ];
-const FEED_BATCH_SIZE = 10;
-const FEED_REFRESH_AFTER_GUESSES = 7;
+const FEED_BATCH_SIZE = 8;
 
 export default function FeedPage() {
   const { userId: currentUserId, isLoggedIn, isPrivilegedViewer } = useAuth();
@@ -37,45 +36,53 @@ export default function FeedPage() {
   const [posts, setPosts] = useState<UiPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const [guessedInCurrentBatch, setGuessedInCurrentBatch] = useState(0);
 
   const refreshScheduledRef = useRef(false);
-  const successfulGuessCountRef = useRef(0);
+  const guessedImageIdsInBatchRef = useRef<Set<number>>(new Set());
   const superUserGuessedByPostRef = useRef<Record<number, number[]>>({});
-  const pinnedCardAfterRefreshRef = useRef<UiPost | null>(null);
   const scrollToTopAfterLoadRef = useRef(false);
+  const currentFeedImageIdsRef = useRef<Set<number>>(new Set());
+  const postsRef = useRef<UiPost[]>([]);
 
   const clearAllFeedTimers = useCallback(() => {
     refreshScheduledRef.current = false;
   }, []);
 
-  const loadFeed = useCallback(async () => {
+  const loadFeed = useCallback(async (options?: { excludeCurrentImages?: boolean }) => {
     if (!currentUserId || authLoading) return;
 
-    clearAllFeedTimers();
     setLoading(true);
     setErr(null);
+    const excludedImageIds = options?.excludeCurrentImages ? Array.from(currentFeedImageIdsRef.current) : [];
 
     try {
-      const data = await getFeedPosts({
-        currentUserId,
-        isPrivilegedViewer,
-        categories: filterTags.length === 0 ? [] : filterTags,
-        limit: FEED_BATCH_SIZE,
-        offset: 0,
-        excludeFullyGuessed: true,
-        hiddenMode,
-      });
+      const fetchBatch = async (excludeImageIds: number[]) => {
+        const requestedLimit = Math.min(50, FEED_BATCH_SIZE + excludeImageIds.length);
+        return getFeedPosts({
+          currentUserId,
+          isPrivilegedViewer,
+          categories: filterTags.length === 0 ? [] : filterTags,
+          limit: requestedLimit,
+          offset: 0,
+          excludeFullyGuessed: true,
+          hiddenMode,
+          excludeImageIds,
+        });
+      };
 
-      const nextPosts = data as UiPost[];
-      const pinnedCard = pinnedCardAfterRefreshRef.current;
-      pinnedCardAfterRefreshRef.current = null;
-      successfulGuessCountRef.current = 0;
-      superUserGuessedByPostRef.current = {};
-      setPosts(
-        pinnedCard
-          ? [pinnedCard, ...nextPosts.filter((post) => Number(post.images?.[0]?.id) !== Number(pinnedCard.images?.[0]?.id))]
-          : nextPosts
+      let nextPosts = ((await fetchBatch(excludedImageIds)) as UiPost[]).slice(0, FEED_BATCH_SIZE);
+      if (nextPosts.length === 0 && excludedImageIds.length > 0) {
+        nextPosts = ((await fetchBatch([])) as UiPost[]).slice(0, FEED_BATCH_SIZE);
+      }
+      guessedImageIdsInBatchRef.current = new Set();
+      currentFeedImageIdsRef.current = new Set(
+        nextPosts.map((post) => Number(post.images?.[0]?.id ?? 0)).filter((imageId) => imageId > 0)
       );
+      postsRef.current = nextPosts;
+      setGuessedInCurrentBatch(0);
+      superUserGuessedByPostRef.current = {};
+      setPosts(nextPosts);
 
       if (scrollToTopAfterLoadRef.current && typeof window !== "undefined") {
         scrollToTopAfterLoadRef.current = false;
@@ -86,13 +93,14 @@ export default function FeedPage() {
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : "Feed se nepodařilo načíst.");
     } finally {
+      refreshScheduledRef.current = false;
       setLoading(false);
     }
-  }, [authLoading, clearAllFeedTimers, currentUserId, filterTags, hiddenMode, isPrivilegedViewer]);
+  }, [authLoading, currentUserId, filterTags, hiddenMode, isPrivilegedViewer]);
 
   const handleManualRefresh = useCallback(async () => {
     scrollToTopAfterLoadRef.current = true;
-    await loadFeed();
+    await loadFeed({ excludeCurrentImages: true });
   }, [loadFeed]);
 
   useEffect(() => {
@@ -107,13 +115,11 @@ export default function FeedPage() {
     };
   }, [clearAllFeedTimers]);
 
-  function scheduleRefreshAfterThreshold(lastGuessedCard: UiPost | null) {
+  function scheduleNextFeedBatch() {
     if (refreshScheduledRef.current) return;
     refreshScheduledRef.current = true;
-    pinnedCardAfterRefreshRef.current = lastGuessedCard;
-    successfulGuessCountRef.current = 0;
     superUserGuessedByPostRef.current = {};
-    void loadFeed();
+    void loadFeed({ excludeCurrentImages: true });
   }
 
   async function handleGuess(imageId: number, age: number) {
@@ -122,17 +128,10 @@ export default function FeedPage() {
     window.dispatchEvent(new Event("aw-hot-message-refresh"));
     const confirmedAge = Number(result.guessedAge ?? age);
 
-    const target = posts.find((post) => Number(post.images?.[0]?.id) === imageId) ?? null;
-    if (!target) return result;
-    const pinnedCard: UiPost = {
-      ...target,
-      images: (target.images ?? []).map((image) =>
-        Number(image.id) === imageId ? { ...image, viewerGuessedAge: confirmedAge } : image
-      ),
-    };
-    setPosts((prev) =>
-      prev.map((post) =>
-        Number(post.images?.[0]?.id) === imageId
+    const target = postsRef.current.find((post) => Number(post.images?.[0]?.id) === imageId) ?? null;
+    setPosts((prev) => {
+      const nextPosts = prev.map((post) =>
+        (post.images ?? []).some((image) => Number(image.id) === imageId)
           ? {
               ...post,
               images: (post.images ?? []).map((image) =>
@@ -140,15 +139,21 @@ export default function FeedPage() {
               ),
             }
           : post
-      )
-    );
+      );
+      postsRef.current = nextPosts;
+      return nextPosts;
+    });
 
-    successfulGuessCountRef.current += 1;
+    const guessedImageIds = guessedImageIdsInBatchRef.current;
+    if (!guessedImageIds.has(imageId)) {
+      guessedImageIds.add(imageId);
+      setGuessedInCurrentBatch(Math.min(guessedImageIds.size, FEED_BATCH_SIZE));
+    }
 
-    if (isPrivilegedViewer) {
+    if (isPrivilegedViewer && target) {
       const sourcePostId = Number(target.sourcePostId ?? target.id ?? 0);
       const existingGuessed = new Set<number>(
-        posts
+        postsRef.current
           .filter((post) => Number(post.sourcePostId ?? post.id) === sourcePostId)
           .map((post) => (post.images?.[0]?.viewerGuessedAge != null ? Number(post.images?.[0]?.id ?? 0) : 0))
           .filter((id) => id > 0)
@@ -161,8 +166,8 @@ export default function FeedPage() {
 
     }
 
-    if (successfulGuessCountRef.current >= FEED_REFRESH_AFTER_GUESSES) {
-      scheduleRefreshAfterThreshold(pinnedCard);
+    if (guessedImageIds.size >= FEED_BATCH_SIZE) {
+      scheduleNextFeedBatch();
     }
 
     return result;
@@ -181,7 +186,14 @@ export default function FeedPage() {
     }
 
     await hideFeedImage({ imageId, currentUserId });
-    setPosts((prev) => prev.filter((post) => Number(post.images?.[0]?.id) !== imageId));
+    setPosts((prev) => {
+      const nextPosts = prev.filter((post) => Number(post.images?.[0]?.id) !== imageId);
+      currentFeedImageIdsRef.current = new Set(
+        nextPosts.map((post) => Number(post.images?.[0]?.id ?? 0)).filter((nextImageId) => nextImageId > 0)
+      );
+      postsRef.current = nextPosts;
+      return nextPosts;
+    });
   }
 
   if (authLoading) {
@@ -214,7 +226,7 @@ export default function FeedPage() {
       <SectionHeaderFilter
         title="Feed"
         iconPath="/ui/Menu-Feed.ico"
-        helpText={"Feed zobrazuje fotky ostatních, které můžeš tipovat. Tvoje vlastní fotky ani fotky, které už jsi běžně tipoval, se ti tu nezobrazují.\n\nFiltr upraví výběr podle tagů a skrytých fotek. Refresh načte nový výběr podle aktuálního nastavení.\n\nKaždý tip pomáhá zpřesňovat AW výsledek ostatních. Výběr se průběžně mění podle dostupných fotek, počtu hlasů, aktivity uživatelů a náhodného prvku, aby se dostalo i na nové nebo méně tipované fotky."}
+        helpText={"Feed načítá sadu 8 fotek ostatních uživatelů. Počet v hlavičce průběžně ukazuje, kolik fotek z aktuální osmičky už máš odtipováno; hotové fotografie mají jemně zelené pozadí.\n\nPo úspěšném odtipování všech 8 fotek se automaticky načte nová sada dalších 8 fotek. Novou sadu můžeš kdykoliv načíst také ručně ikonou refresh; filtr přitom zůstane zachovaný.\n\nTvoje vlastní ani běžně už tipované fotky se ve feedu nezobrazují. Každý tip pomáhá zpřesňovat AW výsledek ostatních a dává prostor i novým nebo méně tipovaným fotkám."}
         helpKey="feed"
         helpModalTitle="Nápověda - Feed"
         helpModalOverlayClassName="z-[140]"
@@ -230,6 +242,8 @@ export default function FeedPage() {
         onRefresh={handleManualRefresh}
         refreshActiveIconPath="/ui/refresh-rot.gif"
         refreshActiveDurationMs={5000}
+        statusText={`${guessedInCurrentBatch} z ${FEED_BATCH_SIZE} odtipováno`}
+        headerTooltip="Po odtipování všech 8 fotek se automaticky načte nová sada. Novou sadu můžeš načíst i ručním refreshem."
       />
 
       <div className="px-2 py-4 sm:p-4">
@@ -249,6 +263,8 @@ export default function FeedPage() {
               hideTimestamps
               showPostMenu={false}
               framelessImages
+              highlightGuessed={post.images?.some((image) => image.viewerGuessedAge != null)}
+              hideChallengeTags
               imageTileClassName="mx-auto w-3/4"
               onAgeGuess={handleGuess}
               onHideImage={handleToggleHiddenImage}
